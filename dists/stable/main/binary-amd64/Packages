@@ -1,0 +1,21 @@
+Package: myth
+Priority: optional
+Section: net
+Installed-Size: 24150
+Maintainer: MYTH Development Team <contact@myth.work.gd>
+Architecture: amd64
+Version: 0.1.0-1
+Depends: bubblewrap (>= 0.6), libc6 (>= 2.31)
+Filename: pool/main/m/myth/myth_0.1.0-1_amd64.deb
+Size: 6945584
+MD5sum: 73c2a844ead481aec41a044ae4085a7a
+SHA1: a10c029e1c74c61b151b473e0f86db42183e6d8d
+SHA256: 2cf11aaf4d300e0acd1186dec53091aef7aa201af5fbcfd7811b511bc496008a
+SHA512: 86527e52c161a2bcf0035b3babe11a071051a8db937356be8cb05c6c4a066797e30c2b12aa531602b70620ed6c786828a7fd4eb0fcf631855d027d528c15d0c7
+Description: An ultra-fast AI-powered reconnaissance agent for Kali Linux
+ MYTH is an ultra-powerful, tactical AI reconnaissance agent designed for 
+ high-fidelity asset discovery and attack surface mapping. 
+ It features a unified neural link system with persistent session memory, 
+ sandboxed execution via Bubblewrap, and advanced MCP tool discovery.
+Homepage: https://myth.work.gd
+

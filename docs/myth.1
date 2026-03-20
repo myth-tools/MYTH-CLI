@@ -1,0 +1,121 @@
+.TH MYTH 1 "March 2026" "MYTH 0.1.0" "User Commands"
+.SH NAME
+myth \- AI-Powered Reconnaissance Agent for Kali Linux
+.SH SYNOPSIS
+.B myth
+[\fIOPTIONS\fR] [\fISUBCOMMAND\fR]
+.SH DESCRIPTION
+.B MYTH
+is an ultra-fast, sandboxed, volatile CLI agent that leverages 3000+ Kali security tools via MCP, powered by NVIDIA NIM and Rig.rs. All operations run inside a Bubblewrap sandbox. All data is stored in RAM and destroyed on exit.
+.SH OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-config\fR \fIFILE\fR
+Path to user config file (default: ~/.config/myth/user.yaml).
+.TP
+\fB\-l\fR, \fB\-\-log\-level\fR \fILEVEL\fR
+Override log level (trace, debug, info, warn, error).
+.TP
+\fB\-\-no\-tui\fR
+Disable TUI (use simple interactive CLI).
+.TP
+\fB\-\-no\-sandbox\fR
+Disable sandbox (NOT RECOMMENDED).
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help information.
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version information.
+.SH SUBCOMMANDS
+.TP
+\fBscan\fR, \fBrecon\fR
+Initialize full-spectrum target acquisition and reconnaissance.
+.TP
+\fBstealth\fR
+Launch immediate low-signature, passive-only reconnaissance.
+.TP
+\fBmaster\fR, \fBultra\fR
+ULTRA-ROBUST DISCOVERY: Tor + Proxies + Mega Wordlist + Deep Recursion.
+.TP
+\fBsubdomains\fR
+High-speed multi-source subdomain discovery engine.
+.TP
+\fBosint\fR
+Launch specialized Open Source Intelligence (OSINT) ops.
+.TP
+\fBvuln\fR
+Perform a deep, multi-vector vulnerability assessment.
+.TP
+\fBtools\fR
+Catalog and display all synchronized mission assets/tools.
+.TP
+\fBtarget\fR
+Force rotate the mission focus to a new target/CIDR.
+.TP
+\fBchat\fR
+Launch an interactive tactical chat session with the agent.
+.TP
+\fBconfig\fR
+Retrieve the current mission configuration metadata.
+.TP
+\fBprofile\fR
+View or modulate tactical reconnaissance profiles/phases.
+.TP
+\fBcheck\fR, \fBhealth\fR
+Verify system health, sandbox status, and tool availability.
+.TP
+\fBmcp\fR
+Manage Custom User MCP Servers (Local & Remote).
+.TP
+\fBvitals\fR, \fBstatus\fR
+Analyze neural pulses and session lifecycle metadata.
+.TP
+\fBfindings\fR
+Aggregate and display all discovered tactical intelligence.
+.TP
+\fBgraph\fR
+Render the infrastructure relationship graph of target assets.
+.TP
+\fBhistory\fR
+Aggregate tactical event logs and mission history.
+.TP
+\fBreport\fR
+Generate a comprehensive executive intelligence summary.
+.TP
+\fBsync\fR
+Force a re-synchronization with local tool registries.
+.TP
+\fBburn\fR
+EMERGENCY: Immediate shred of all data and system shutdown.
+.TP
+\fBwipe\fR
+Wipe the current session memory and tactical context.
+.TP
+\fBclear\fR
+Purge visual buffers (Memory remains).
+.TP
+\fBdepth\fR
+Modulate the maximum neural iteration depth for the agent.
+.TP
+\fBinspect\fR
+Retrieve deep technical documentation for a specific asset.
+.TP
+\fBusage\fR
+Display the tactical usage documentation.
+.TP
+\fBcompletions\fR
+Generate high-performance shell autocompletion tactical scripts.
+.TP
+\fBversion\fR
+Display the current neural core version telemetry.
+.SH FILES
+.TP
+\fI/etc/myth/user.yaml\fR
+System-wide configuration defaults.
+.TP
+\fI~/.config/myth/user.yaml\fR
+User-specific configuration and override metadata.
+.SH BUGS
+Report bugs to <contact@myth.work.gd>.
+.SH AUTHOR
+MYTH Development Team.

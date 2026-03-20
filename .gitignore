@@ -1,0 +1,45 @@
+# Build artifacts
+/target/
+
+# IDE
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Workspace (should never be committed)
+/mnt/myth-workspace/
+
+# private
+notes/
+
+# local user config bounds
+.config/myth/
+
+# local binaries
+find_rig_chat
+
+# images
+*.png
+
+# others
+MYTH_CLI_Deep_Audit_Report.md
+src/bin
+
+# Security & Distribution
+self_hosted_repo_guide.md
+tools_list.txt
+.cargo
+config/.myth_history

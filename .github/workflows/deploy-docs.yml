@@ -1,0 +1,72 @@
+name: Deploy Docs to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci --legacy-peer-deps
+
+      - name: Build docs
+        working-directory: docs
+        run: |
+          # Extract repository & dynamic pages URL from agent.yaml
+          REPO_URL=$(grep "repository_url:" ../config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\'']?([^"'\'']+)["'\'']?.*/\1/')
+          PAGES_URL=$(grep "pages_url:" ../config/agent.yaml | head -n 1 | sed -E 's/.*pages_url:[[:space:]]*["'\'']?([^"'\'']+)["'\'']?.*/\1/' || echo "")
+          
+          if [[ -z "$PAGES_URL" ]]; then
+              PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
+              PAGES_URL="https://$PAGES_DOMAIN"
+          fi
+          
+          echo "Building with VITE_REPO_URL: $REPO_URL"
+          echo "Building with VITE_PAGES_URL: $PAGES_URL"
+          
+          VITE_REPO_URL="$REPO_URL" VITE_PAGES_URL="$PAGES_URL" npm run build
+          
+          # Prepare scripts for the website
+          cp ../scripts/install.sh dist/
+          cp ../scripts/bootstrap.sh dist/
+          sed -i "s|__REPO_URL__|$REPO_URL|g" dist/install.sh
+          sed -i "s|__PAGES_URL__|$PAGES_URL|g" dist/install.sh
+          sed -i "s|__REPO_URL__|$REPO_URL|g" dist/bootstrap.sh
+          sed -i "s|__PAGES_URL__|$PAGES_URL|g" dist/bootstrap.sh
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

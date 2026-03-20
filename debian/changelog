@@ -1,0 +1,9 @@
+myth (0.1.0) stable; urgency=low
+
+  * Initial release of MYTH Tactical AI Reconnaissance Agent.
+  * Integrated Model Context Protocol (MCP) for tool discovery.
+  * Added Bubblewrap sandboxing for secure execution.
+  * Implemented ultra-premium cyber-style CLI interface.
+  * Added professional installation and decommissioning scripts.
+
+ -- MYTH Development Team <contact@myth.work.gd>  Fri, 20 Mar 2026 14:40:00 +0600

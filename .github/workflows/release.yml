@@ -1,0 +1,86 @@
+name: Release & Publish APT Repo
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aptly gnupg bubblewrap
+
+      - name: Import GPG Key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 -d | gpg --batch --import
+          KEY_ID=$(gpg --list-secret-keys --keyid-format=SHORT | grep 'sec' | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "KEY_ID=$KEY_ID" >> $GITHUB_ENV
+
+      - name: Build & Package
+        run: |
+          cargo install cargo-deb
+          cargo deb
+          DEB_FILE=$(ls target/debian/myth_*.deb | head -n 1)
+          echo "DEB_FILE=$DEB_FILE" >> $GITHUB_ENV
+
+      - name: Update Aptly Repo
+        run: |
+          # Extract repository & dynamic pages URL from agent.yaml
+          AGENT_URL=$(grep "repository_url:" config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\'']?([^"'\'']+)["'\'']?.*/\1/')
+          PAGES_URL=$(grep "pages_url:" config/agent.yaml | head -n 1 | sed -E 's/.*pages_url:[[:space:]]*["'\'']?([^"'\'']+)["'\'']?.*/\1/' || echo "")
+          
+          if [[ -z "$PAGES_URL" ]]; then
+              PAGES_DOMAIN=$(echo "$AGENT_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
+              PAGES_URL="https://$PAGES_DOMAIN"
+          fi
+          
+          echo "Using Repository URL: $AGENT_URL"
+          echo "Using Pages URL: $PAGES_URL"
+
+          # Inject URLs into distribution scripts
+          sed -i "s|__REPO_URL__|$AGENT_URL|g" scripts/install.sh
+          sed -i "s|__PAGES_URL__|$PAGES_URL|g" scripts/install.sh
+          sed -i "s|__REPO_URL__|$AGENT_URL|g" scripts/bootstrap.sh
+          sed -i "s|__PAGES_URL__|$PAGES_URL|g" scripts/bootstrap.sh
+
+          aptly repo create -comment="MYTH Official" -component=main -distribution=stable myth-repo || true
+          aptly repo add myth-repo "$DEB_FILE"
+          
+          # Publish the repository
+          aptly publish repo \
+            -gpg-key="$KEY_ID" \
+            -batch=true \
+            -passphrase="${{ secrets.GPG_PASSPHRASE }}" \
+            -distribution=stable \
+            myth-repo
+            
+          # Prepare the public directory for GitHub Pages
+          mkdir -p public
+          cp -a ~/.aptly/public/. public/
+          
+          # Copy processed scripts to public directory
+          cp scripts/install.sh public/
+          cp scripts/bootstrap.sh public/
+          
+          # Export the public key so users can download it
+          gpg --armor --export "$KEY_ID" > public/myth.gpg
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: public
+          branch: gh-pages
+          clean: false # Do not delete website files

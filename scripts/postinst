@@ -1,0 +1,39 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Debian Maintainer Script (postinst)
+# ═══════════════════════════════════════════════════
+set -e
+
+case "$1" in
+    configure)
+        # 1. Initialize System Configuration
+        if [ ! -f "/etc/myth/user.yaml" ]; then
+            echo "Initializing MYTH tactical configuration in /etc/myth..."
+            mkdir -p /etc/myth
+            # Placeholder or default content can be added here if needed
+            # For now, it's handled by assets in Cargo.toml
+        fi
+
+        # 2. Permissions & Security Audit
+        # Ensure the binary is executable and system config is restricted
+        chmod 755 /usr/bin/myth
+        ln -sf /usr/bin/myth /usr/bin/agent
+        if [ -f "/etc/myth/user.yaml" ]; then
+            chmod 644 /etc/myth/user.yaml
+        fi
+
+        echo "MYTH Tactical Deployment Complete."
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

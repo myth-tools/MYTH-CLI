@@ -1,0 +1,28 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Debian Maintainer Script (preinst)
+# ═══════════════════════════════════════════════════
+set -e
+
+case "$1" in
+    install|upgrade)
+        # Pre-flight checks before tactical deployment
+        if [ -n "$2" ]; then
+            echo "Upgrading MYTH from version $2..."
+        else
+            echo "Initiating first-time tactical deployment of MYTH..."
+        fi
+        ;;
+
+    abort-upgrade)
+        ;;
+
+    *)
+        echo "preinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

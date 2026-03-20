@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="myth-premium-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00ffa3" />
+      <stop offset="50%" stop-color="#00d1ff" />
+      <stop offset="100%" stop-color="#7000ff" />
+    </linearGradient>
+  </defs>
+  <path d="M16 2L29 9.5V22.5L16 30L3 22.5V9.5L16 2Z" stroke="url(#myth-premium-grad)" stroke-width="0.8" opacity="0.3" />
+  <path d="M6 24V8L14 18L16 14L18 18L26 8V24" stroke="url(#myth-premium-grad)" stroke-width="4" stroke-linejoin="miter" stroke-linecap="square" />
+</svg>

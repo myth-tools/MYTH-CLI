@@ -1,0 +1,173 @@
+{
+  "mcp_servers": {
+    "sqlite": {
+      "type": "local",
+      "enabled": true,
+      "command": "uvx",
+      "args": [
+        "mcp-server-sqlite",
+        "--db-path",
+        "/tmp/myth_mission.db"
+      ],
+      "env": {},
+      "description": "Relational database interaction",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "exa": {
+      "type": "local",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "-y",
+        "exa-mcp-server"
+      ],
+      "env": {
+        "EXA_API_KEY": "2c9eea79-d0ec-41ef-add0-00d049d62db3"
+      },
+      "description": "Exa Search — LLM-native search engine",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "llm_researcher": {
+      "type": "local",
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@iflow-mcp/light-research-mcp",
+        "--mcp"
+      ],
+      "env": {},
+      "description": "LLM Researcher — Advanced autonomous research",
+      "working_dir": null,
+      "timeout": 120,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "playwright": {
+      "type": "local",
+      "enabled": false,
+      "command": "uvx",
+      "args": [
+        "mcp-server-playwright"
+      ],
+      "env": {},
+      "description": "Browser automation and testing",
+      "working_dir": null,
+      "timeout": 120,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "jina": {
+      "type": "local",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@jina-ai/mcp-server"
+      ],
+      "env": {},
+      "description": "Jina Reader — URL to Markdown",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "codegate": {
+      "type": "local",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "-y",
+        "codegate-mcp"
+      ],
+      "env": {},
+      "description": "CodeGate — Security proxy and protection",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "github": {
+      "type": "local",
+      "enabled": false,
+      "command": "uvx",
+      "args": [
+        "mcp-server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": ""
+      },
+      "description": "GitHub — Repository management and automation",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "fetch": {
+      "type": "local",
+      "enabled": false,
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ],
+      "env": {},
+      "description": "Official MCP Fetch server",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "filesystem": {
+      "type": "local",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/shesher/Documents/MYTH_CLI"
+      ],
+      "env": {},
+      "description": "Filesystem — Local file operations and secure workspace management",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "webfetch": {
+      "type": "local",
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@iflow-mcp/manooll-webfetch-mcp"
+      ],
+      "env": {},
+      "description": "WebFetch — Fast web content extraction",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    },
+    "open-websearch": {
+      "type": "local",
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "open-websearch@latest"
+      ],
+      "env": {},
+      "description": "Open WebSearch — Free web search engine for real-time information retrieval",
+      "working_dir": null,
+      "timeout": 60,
+      "allowed_tools": [],
+      "transport": "stdio"
+    }
+  }
+}

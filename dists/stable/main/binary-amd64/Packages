@@ -7,11 +7,11 @@ Architecture: amd64
 Version: 0.1.0-1
 Depends: bubblewrap (>= 0.6), libc6 (>= 2.31)
 Filename: pool/main/m/myth/myth_0.1.0-1_amd64.deb
-Size: 6945960
-MD5sum: 9eca622a0998e0f4bfa6cab89f523b24
-SHA1: b11031a20c3007d3b585916b2b6238b25d1a176a
-SHA256: 26f60836468a72ef92fa512a1a3b8c533899bdf781f5b4573ecfe276dffd10e5
-SHA512: 6b575f3d2836922b4808f3912288e02ee658d18c803be0573f3e9662fb98b6e731fc0f7bea6a0e74cb4386d80bb2e6b3ac78447a0694dc6271a12b01538f3e36
+Size: 6946580
+MD5sum: 3f8ec69f17260160e41bcf5661c2c6f4
+SHA1: 8e6f2c4da52deab760a2b4fb4ac72fbc58e38c08
+SHA256: 160871bcf158820264817aff42dd29ebc90dcf2a33a819476f47a1f4d9787f3d
+SHA512: 12acecdf231046ad0984338f26046f88a066e51836ab55b54d0f82de81c830c9e785a1b9027a08dcc4d21fd8d64275f6245a0349907a79ea6637b43bfbdbe2a8
 Description: An ultra-fast AI-powered reconnaissance agent for Kali Linux
  MYTH is an ultra-powerful, tactical AI reconnaissance agent designed for 
  high-fidelity asset discovery and attack surface mapping. 

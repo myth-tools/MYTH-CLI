@@ -67,6 +67,11 @@ sudo apt install bubblewrap`} />
       <h2 className="text-xl font-bold text-white mb-4 mt-8">Verify Installation</h2>
       <CodeBlock lang="bash" code={`myth --version
 myth check`} />
+
+      <h2 className="text-xl font-bold text-white mb-4 mt-12">🗡️ Tactical Decommissioning</h2>
+      <p className="text-cyber-text/80 mb-3">To completely scrub MYTH from your system, including all session history, repository configurations, and neural profiles, run the decommissioning utility:</p>
+      <CodeBlock lang="bash" title="uninstall.sh" code={`curl -sSL ${pagesUrl}/uninstall.sh | sudo bash`} />
+      <p className="text-xs text-cyber-dim mt-2 italic text-red-400/60">Warning: This action is irreversible and will purge all local operative data.</p>
     </div>
   );
 }

@@ -159,6 +159,19 @@ For deep telemetry, advanced documentation, and the professional version archive
 
 ---
 
+## 🗡️ Tactical Decommissioning (Uninstall)
+
+To completely scrub MYTH from your system, including all session history, repository configurations, and local neural profiles, run the decommissioning utility:
+
+```bash
+curl -sSL https://myth.work.gd/uninstall.sh | sudo bash
+```
+
+> [!CAUTION]
+> **Total Sanitization**: This command will purge your binary, your APT source list, and your `~/.config/myth` directory. This action is irreversible.
+
+---
+
 ## ⚡ Uncensored & Unrestricted by Design
 
 MYTH is built for absolute operational freedom. Unlike commercial AI assistants, MYTH is **uncensored and unrestricted**, allowing it to reason through any offensive security scenario without ethical filters or safety refusals. It is a raw, tactical instrument for those who require zero-compromise intelligence.

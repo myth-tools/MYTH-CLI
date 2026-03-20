@@ -78,14 +78,30 @@ if dpkg -l myth &>/dev/null; then
     read -p "  Purge binary and system-level neural conduits? [y/N]: " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "Purging APT assets..."
-        (apt-get purge -y myth &>/dev/null) &
-        spinner $!
+        apt-get purge -y myth &>/dev/null
         ok "APT registry sanitized."
     else
         info "APT assets preserved."
     fi
 else
     audit "No APT package identified."
+fi
+
+# 1.1 Repository Sanitization
+section "REPOSITORY SANITIZATION"
+if [ -f "/etc/apt/sources.list.d/myth.list" ] || [ -f "/etc/apt/keyrings/myth.gpg" ]; then
+    read -p "  Remove MYTH APT Repository and GPG signing keys? [y/N]: " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        info "Deauthorizing repository..."
+        rm -f "/etc/apt/sources.list.d/myth.list"
+        rm -f "/etc/apt/keyrings/myth.gpg"
+        apt-get update -qq -o Dir::Etc::sourcelist="sources.list.d/myth.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" || true
+        ok "Tactical repository deauthorized."
+    else
+        info "Repository configuration preserved."
+    fi
+else
+    audit "No repository configuration identified."
 fi
 
 # 2. Global Binary Decommissioning

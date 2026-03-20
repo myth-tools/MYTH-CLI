@@ -90,7 +90,8 @@ fi
 section "DEBIAN PACKAGE NEUTRALIZATION"
 if dpkg -l myth &>/dev/null; then
     audit "MYTH Tactical Package detected in APT registry."
-    read -p "  Purge binary and system-level neural conduits? [y/N]: " response
+    echo -en "  ${CYAN}⠿  Purge binary and system-level neural conduits? [y/N]: ${NC}" >&3
+    read response < /dev/tty || response="N"
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "Purging APT assets..."
         apt-get purge -y myth &>/dev/null
@@ -105,7 +106,8 @@ fi
 # 1.1 Repository Sanitization
 section "REPOSITORY SANITIZATION"
 if [ -f "/etc/apt/sources.list.d/myth.list" ] || [ -f "/etc/apt/keyrings/myth.gpg" ]; then
-    read -p "  Remove MYTH APT Repository and GPG signing keys? [y/N]: " response
+    echo -en "  ${CYAN}⠿  Remove MYTH APT Repository and GPG signing keys? [y/N]: ${NC}" >&3
+    read response < /dev/tty || response="N"
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "Deauthorizing repository..."
         rm -f "/etc/apt/sources.list.d/myth.list"
@@ -161,9 +163,10 @@ fi
 USER_CONFIG="$REAL_USER_HOME/.config/myth"
 
 if [ -d "$USER_CONFIG" ]; then
-    echo -e "${YELLOW}⠿  Detected active neural profile for operative: $REAL_USER${NC}"
-    echo -e "   Physical Path: $USER_CONFIG"
-    read -p "  Wipe all session history, profiles, and neural links? [y/N]: " response
+    echo -e "${YELLOW}⠿  Detected active neural profile for operative: $REAL_USER${NC}" >&3
+    echo -e "   Physical Path: $USER_CONFIG" >&3
+    echo -en "${CYAN}⠿  Wipe all session history, profiles, and neural links? [y/N]: ${NC}" >&3
+    read response < /dev/tty || response="N"
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
         info "Scrubbing operative context..."
         rm -rf "$USER_CONFIG"

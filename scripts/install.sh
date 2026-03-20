@@ -305,13 +305,22 @@ USER_YAML="${CONFIG_DIR}/user.yaml"
 if [ ! -f "$USER_YAML" ]; then
     mkdir -p "$CONFIG_DIR"
     info "Creating config at $USER_YAML"
-    if [ -f "config/user.yaml" ]; then
+    
+    # Attempt to download the FULL premium template from the web nexus
+    if curl -fsSL "${PAGES_URL}/user.yaml" -o "$USER_YAML" 2>/dev/null; then
+        ok "Retrieved premium configuration template."
+    elif [ -f "config/user.yaml" ]; then
+        # Local source fallback
         cp config/user.yaml "$USER_YAML"
+        ok "Copied local configuration template."
     else
+        # minimal emergency fallback
+        audit "Network unreachable. Deploying emergency minimal config."
         cat <<EOF > "$USER_YAML"
 agent:
   user_name: "Chief"
   nvidia_api_key: ""
+  all_report_path: "/home/shesher/Downloads"
 EOF
     fi
     if [ -f "config/mcp.json" ]; then

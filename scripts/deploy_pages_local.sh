@@ -68,7 +68,8 @@ cp -r "$PROJECT_ROOT/docs/dist"/. .
 cp "$PROJECT_ROOT/scripts/install.sh" .
 cp "$PROJECT_ROOT/scripts/bootstrap.sh" .
 cp "$PROJECT_ROOT/scripts/uninstall.sh" .
-cp "$PROJECT_ROOT/myth.gpg" .  # Copy GPG public key for APT
+cp "$PROJECT_ROOT/config/user.yaml" .   # Full config template for installer
+cp "$PROJECT_ROOT/myth.gpg" .            # Copy GPG public key for APT
 
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$PROJECT_ROOT/Cargo.toml" | head -n 1)
 AGENT_NAME=$(grep "name:" "$PROJECT_ROOT/config/agent.yaml" | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')

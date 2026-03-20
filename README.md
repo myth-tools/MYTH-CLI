@@ -170,7 +170,3 @@ MYTH is architected and maintained by:
 ## 📄 License
 
 MIT — See [LICENSE](LICENSE) for details.
-# MYTH-CLI
-# MYTH-CLI
-# MYTH-CLI
-# MYTH-CLI

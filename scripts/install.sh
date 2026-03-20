@@ -4,22 +4,19 @@
 # ═══════════════════════════════════════════════════════════
 #
 #  Usage:
-#    curl -sSL $RAW_REPO_URL/scripts/install.sh | bash
+#    curl -sSL https://myth.work.gd/install.sh | sudo bash
 #    OR
 #    bash scripts/install.sh
 #
-set -euo pipefail
+set -eo pipefail
+# Note: -u (nounset) is intentionally omitted for robustness
+#       across different shell environments and sudo contexts.
 
-# ─── Cleanup Trap ───
-CONFIG_DIR="$HOME/.config/myth"
+# ─── Early Constants ───
+CONFIG_DIR="${HOME}/.config/myth"
 BUILD_DIR="/tmp/myth-build-$(date +%s)"
-cleanup() {
-    if [ -d "$BUILD_DIR" ]; then
-        info "Cleaning up build artifacts..."
-        rm -rf "$BUILD_DIR"
-    fi
-}
-trap cleanup EXIT
+REAL_USER="${SUDO_USER:-$USER}"
+REAL_HOME=$(eval echo "~${REAL_USER}")
 
 # ─── Dynamic Repository Configuration ───
 # These placeholders are replaced by CI/CD during release
@@ -29,11 +26,10 @@ PAGES_URL="__PAGES_URL__"
 # Fallback for local execution (if placeholders were not replaced)
 if [[ "$REPO_URL" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
-        REPO_URL=$(grep "repository_url:" config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\'']?([^"'\'']+)["'\'']?.*/\1/')
+        REPO_URL=$(grep "repository_url:" config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\''"]?([^"'\'']+)["'\''"]?.*/\1/')
         PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
         PAGES_URL="https://$PAGES_DOMAIN"
     else
-        # Use a hardcoded default only if absolutely necessary as a last resort
         DEFAULT_REPO="https://github.com/myth-tools/MYTH-CLI"
         REPO_URL=$DEFAULT_REPO
         PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
@@ -41,12 +37,10 @@ if [[ "$REPO_URL" == "__"*"__" ]]; then
     fi
 fi
 
-# URL Normalization (Robustness)
+# URL Normalization
 CLEAN_REPO_URL=$(echo "$REPO_URL" | sed -E 's|/*$||' | sed -E 's|\.git$||')
-RAW_REPO_URL="${CLEAN_REPO_URL/github.com/raw.githubusercontent.com}/main"
 
-
-# ─── Visual Branding (Ultra-Premium Cyber Style) ───
+# ─── Visual Branding ───
 BANNER="
   ███╗   ███╗██╗   ██╗████████╗██╗  ██╗
   ████╗ ████║╚██╗ ██╔╝╚══██╔══╝██║  ██║
@@ -68,8 +62,6 @@ NC='\033[0m'
 # ─── Professional Logging & Trapping ───
 LOG_FILE="/tmp/myth-install-$(date +%s).log"
 exec 3>&1 # Save stdout to fd 3
-# Redirect all subsequent stdout/stderr to log file (except for our high-fidelity UI)
-# Note: We will use '>&3' to print to the actual terminal.
 
 cleanup() {
     local exit_code=$?
@@ -77,17 +69,16 @@ cleanup() {
         echo -e "\n${RED}✘  [CRITICAL] Installation aborted unexpectedly.${NC}" >&3
         echo -e "${YELLOW}⠿  Technical logs preserved at: $LOG_FILE${NC}" >&3
     fi
-    # Cleanup background processes
     jobs -p | xargs kill -9 2>/dev/null || true
     rm -rf "$BUILD_DIR" 2>/dev/null
     exit $exit_code
 }
 trap cleanup EXIT INT TERM
 
-# High-fidelity status indicators (printing to fd 3)
+# High-fidelity status indicators
 info()    { echo -e "${BLUE}⚡${NC}  ${BOLD}$1${NC}" >&3; }
 ok()      { echo -e "${GREEN}✔${NC}  $1" >&3; }
-warn()    { echo -en "${YELLOW}⚠  [WARN] ${NC} $1" >&3; }
+warn()    { echo -e "${YELLOW}⚠  [WARN]${NC} $1" >&3; }
 err()     { echo -e "${RED}✘  [FATAL]${NC} $1" >&3; exit 1; }
 audit()   { echo -e "${CYAN}⠿${NC}  $1" >&3; }
 section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}" >&3; }
@@ -99,21 +90,7 @@ require_command() {
     fi
 }
 
-# Progress spinner for long operations
-spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='|/-\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
-    done
-    printf "    \b\b\b\b"
-}
-
+# ─── Start ───
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}" >&3
 echo -e "${CYAN}  [ DIGITAL RECONNAISSANCE & TACTICAL AI AGENT ]${NC}" >&3
 echo -e "  ${BOLD}Version: 1.0.0-Stable${NC}\n" >&3
@@ -133,25 +110,21 @@ case "$ARCH" in
 esac
 ok "Architecture: $ARCH ($RUST_TARGET)"
 
-# ─── Install System Dependencies ───
+# ─── System Audit ───
 section "SYSTEM AUDIT & PRE-FLIGHT"
 audit "OS: $(grep PRETTY_NAME /etc/os-release | cut -d'=' -f2 | tr -d '\"')"
 audit "ARCH: $ARCH ($RUST_TARGET)"
 
 if [ -d "$CONFIG_DIR" ]; then audit "Persistent profile detected at $CONFIG_DIR"; fi
-if command -v bwrap &>/dev/null; then ok "Sandboxing engine (Bubblewrap) verified"; else warn "Sandboxing engine missing. Procedural isolation will be degraded."; fi
-if command -v rustc &>/dev/null; then 
-    COMPILER_VERSION=$(rustc --version 2>/dev/null | head -n 1 || echo "detected but not configured (check rustup)")
-    ok "Compiler detected: $COMPILER_VERSION"
-fi
+if command -v bwrap &>/dev/null; then ok "Sandboxing engine (Bubblewrap) verified"; else warn "Sandboxing engine missing."; fi
 
+# ─── Dependency Resolution ───
 section "DEPENDENCY RESOLUTION"
 info "Synchronizing tactical dependencies..."
-(sudo apt-get update -qq && \
- sudo apt-get install -y -qq \
+sudo apt-get update -qq 2>&1 | tail -1 || true
+sudo apt-get install -y -qq \
     bubblewrap build-essential pkg-config libssl-dev \
-    curl git protobuf-compiler 2>/dev/null) &
-spinner $!
+    curl git protobuf-compiler 2>&1 | tail -1 || warn "Some dependencies may have failed to install."
 ok "Tactical dependencies synchronized."
 
 # ─── Install Recommended Security Tools (for non-Kali) ───
@@ -161,7 +134,6 @@ if ! grep -qi "kali" /etc/os-release 2>/dev/null; then
     TO_INSTALL=""
     for tool in $RECOMMENDED_TOOLS; do
         if ! command -v "$tool" &>/dev/null; then
-            # Special case for dnsutils (provides dig)
             if [ "$tool" == "dnsutils" ] && command -v dig &>/dev/null; then continue; fi
             TO_INSTALL="$TO_INSTALL $tool"
         fi
@@ -169,101 +141,153 @@ if ! grep -qi "kali" /etc/os-release 2>/dev/null; then
 
     if [ -n "$TO_INSTALL" ]; then
         info "Installing missing recommended tools:$TO_INSTALL..."
-        sudo apt-get install -y -qq $TO_INSTALL 2>/dev/null || warn "Failed to install some tools. You may need to install them manually."
+        sudo apt-get install -y -qq $TO_INSTALL 2>/dev/null || warn "Failed to install some tools."
         ok "Recommended tools installed"
     else
         ok "All recommended core tools already present"
     fi
 fi
 
-# ─── Install MYTH ───
+# ═══════════════════════════════════════════════════════════
+#  PATH A: APT Installation (Preferred)
+# ═══════════════════════════════════════════════════════════
 section "PRIMARY DEPLOYMENT (APT)"
 info "Attempting high-speed binary synchronization..."
 
-# 1. Download Public Key if not present
+APT_SUCCESS=false
+
+# 1. Download & install GPG key
 if [ ! -f "/etc/apt/keyrings/myth.gpg" ]; then
     info "Retrieving public signing authority..."
-    if ! wget -q --spider "${PAGES_URL}/myth.gpg"; then
-        warn "Signing authority unavailable at gateway. Falling back to source compilation."
-    else
+    if curl -fsSL "${PAGES_URL}/myth.gpg" -o /tmp/myth-key.gpg 2>/dev/null; then
         sudo mkdir -p /etc/apt/keyrings
-        wget -qO- "${PAGES_URL}/myth.gpg" | sudo gpg --dearmor --yes -o /etc/apt/keyrings/myth.gpg
+        # Detect if key is already in binary (dearmored) format or ASCII-armored
+        if file /tmp/myth-key.gpg | grep -qi "PGP"; then
+            # ASCII-armored key: needs dearmoring
+            sudo gpg --dearmor --yes -o /etc/apt/keyrings/myth.gpg /tmp/myth-key.gpg 2>/dev/null
+        else
+            # Already binary/dearmored: copy directly
+            sudo cp /tmp/myth-key.gpg /etc/apt/keyrings/myth.gpg
+        fi
+        rm -f /tmp/myth-key.gpg
+        ok "Signing authority installed."
+    else
+        warn "Signing authority unavailable at gateway."
     fi
 fi
 
+# 2. Configure APT source & attempt install
 if [ -f "/etc/apt/keyrings/myth.gpg" ]; then
     info "Configuring tactical source lists..."
     echo "deb [signed-by=/etc/apt/keyrings/myth.gpg] ${PAGES_URL} stable main" | sudo tee /etc/apt/sources.list.d/myth.list > /dev/null
-    
+
     info "Mirror synchronization..."
-    if sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/myth.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" -qq 2>/dev/null; then
+    if sudo apt-get update -o Dir::Etc::sourcelist="sources.list.d/myth.list" -o Dir::Etc::sourceparts="-" -o APT::Get::List-Cleanup="0" -qq 2>&1 | tail -1; then
         info "Core installation..."
-        if sudo apt-get install -y -qq myth 2>/dev/null; then
-            ok "MYTH Tactical AI successfully deployed via APT."
-            exit 0
+        if sudo apt-get install -y -qq myth 2>&1 | tail -1; then
+            APT_SUCCESS=true
+            ok "MYTH deployed successfully via APT."
         fi
     fi
-    warn "APT synchronization failed. Shifting to Source Level 3 Deployment..."
+
+    if [ "$APT_SUCCESS" = false ]; then
+        warn "APT synchronization failed. Shifting to Source Level 3 Deployment..."
+    fi
 else
     warn "Gateway keys missing. Shifting to Source Level 3 Deployment..."
 fi
 
-    # ─── Install Rust (if not present) ───
-    if ! command -v cargo &>/dev/null; then
-        info "Installing Rust toolchain..."
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" || true
-        ok "Rust installed."
-    else
-        ok "Rust already present (managed by rustup/system)."
+# ═══════════════════════════════════════════════════════════
+#  PATH B: Source Compilation (Fallback)
+# ═══════════════════════════════════════════════════════════
+if [ "$APT_SUCCESS" = false ]; then
+
+    # ─── Ensure a working Rust/Cargo toolchain ───
+    ensure_rust() {
+        # Source cargo env from common locations
+        for env_file in "$HOME/.cargo/env" "$REAL_HOME/.cargo/env" "/root/.cargo/env"; do
+            [ -f "$env_file" ] && . "$env_file" 2>/dev/null || true
+        done
+
+        # If cargo still not found, install Rust from scratch
+        if ! command -v cargo &>/dev/null; then
+            info "Installing Rust toolchain..."
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable 2>&1 | tail -5
+            for env_file in "$HOME/.cargo/env" "$REAL_HOME/.cargo/env"; do
+                [ -f "$env_file" ] && . "$env_file" 2>/dev/null || true
+            done
+            ok "Rust toolchain installed."
+            return
+        fi
+
+        # Cargo exists, but make sure a default toolchain is set
+        if command -v rustup &>/dev/null; then
+            if ! rustup show active-toolchain &>/dev/null; then
+                info "Configuring default Rust toolchain..."
+                rustup default stable 2>&1 | tail -1
+                ok "Rust default toolchain set to stable."
+            fi
+        fi
+
+        ok "Rust toolchain ready."
+    }
+
+    ensure_rust
+
+    # Verify cargo actually works
+    if ! cargo --version &>/dev/null; then
+        err "Cargo is not functional after setup. Cannot compile from source."
     fi
 
     # ─── Build MYTH ───
     section "SOURCE DEPLOYMENT (LEVEL 3)"
     info "Initiating neural core compilation..."
+
     if [ -f "Cargo.toml" ]; then
-        # Building from source directory
-        cargo build --release --quiet &
-        spinner $!
+        # Building from local source directory
+        info "Building from local source..."
+        if ! cargo build --release --quiet 2>&1; then
+            err "Source compilation failed. Check logs at $LOG_FILE"
+        fi
     else
         # Clone and build
         require_command git
         info "Cloning tactical repository blueprint..."
-        git clone --depth 1 "${CLEAN_REPO_URL}.git" "$BUILD_DIR" &>/dev/null &
-        spinner $!
+        if ! git clone --depth 1 "${CLEAN_REPO_URL}.git" "$BUILD_DIR" 2>&1; then
+            err "Failed to clone repository from ${CLEAN_REPO_URL}"
+        fi
         cd "$BUILD_DIR"
-        cargo build --release --quiet &
-        spinner $!
+        info "Compiling from source (this may take a few minutes)..."
+        if ! cargo build --release --quiet 2>&1; then
+            err "Source compilation failed. Check logs at $LOG_FILE"
+        fi
     fi
-    ok "Neural Core Compilation Complete."
 
-    # ─── Install Binary ───
+    # ─── Verify & Install Binary ───
     if [ ! -f "target/release/myth" ]; then
-        err "Compilation failed. Critical core components missing."
+        err "Compilation failed. Binary not found at target/release/myth."
     fi
+
+    ok "Neural Core Compilation Complete."
 
     info "Finalizing binary placement..."
     sudo cp target/release/myth /usr/local/bin/myth
     sudo ln -sf /usr/local/bin/myth /usr/local/bin/agent
     sudo ln -sf /usr/local/bin/myth /usr/local/bin/chief
     ok "Tactical binaries deployed to /usr/local/bin/"
-
-    # ─── Success ───
-    section "MISSION SUCCESS"
-    echo -e "${GREEN}${BOLD}  MYTH Tactical AI is now online.${NC}"
-    echo -e "  Execute '${BOLD}myth --help${NC}' to begin reconnaissance.\n"
 fi
 
 # ─── Install Config ───
-USER_YAML="$CONFIG_DIR/user.yaml"
+# Use REAL_HOME for config so it goes to the actual user, not root
+ACTUAL_CONFIG_DIR="${REAL_HOME}/.config/myth"
+USER_YAML="$ACTUAL_CONFIG_DIR/user.yaml"
 
 if [ ! -f "$USER_YAML" ]; then
-    mkdir -p "$CONFIG_DIR" 
+    mkdir -p "$ACTUAL_CONFIG_DIR"
     info "Creating default configuration at $USER_YAML"
     if [ -f "config/user.yaml" ]; then
         cp config/user.yaml "$USER_YAML"
     else
-        # Critical fallback if template is missing
         cat <<EOF > "$USER_YAML"
 agent:
   user_name: "Chief"
@@ -271,9 +295,13 @@ agent:
 EOF
     fi
     if [ -f "config/mcp.json" ]; then
-        cp config/mcp.json "$CONFIG_DIR/mcp.json"
+        cp config/mcp.json "$ACTUAL_CONFIG_DIR/mcp.json"
     fi
-    ok "Configured at $CONFIG_DIR/"
+    # Fix ownership if running as sudo
+    if [ -n "${SUDO_USER:-}" ]; then
+        chown -R "$SUDO_USER:$SUDO_USER" "$ACTUAL_CONFIG_DIR"
+    fi
+    ok "Configured at $ACTUAL_CONFIG_DIR/"
 else
     audit "Existing profile detected at $USER_YAML"
 fi
@@ -282,8 +310,8 @@ fi
 section "OPERATIVE INITIALIZATION"
 if [ -t 0 ]; then
     # 1. User Name
-    CURRENT_NAME=$(grep "user_name:" "$USER_YAML" | awk '{print $2}' | tr -d '"' | tr -d "'")
-    if [[ -z "$CURRENT_NAME" || "$CURRENT_NAME" == "Chief" ]]; then
+    CURRENT_NAME=$(grep "user_name:" "$USER_YAML" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'" || echo "")
+    if [ -z "$CURRENT_NAME" ] || [ "$CURRENT_NAME" = "Chief" ]; then
         echo -en "${CYAN}⠿  Enter your Operative Handle [Default: Chief]: ${NC}" >&3
         read OPERATIVE_NAME
         OPERATIVE_NAME=${OPERATIVE_NAME:-Chief}
@@ -292,7 +320,7 @@ if [ -t 0 ]; then
     fi
 
     # 2. NVIDIA API Key
-    CURRENT_KEY=$(grep "nvidia_api_key:" "$USER_YAML" | awk '{print $2}' | tr -d '"' | tr -d "'")
+    CURRENT_KEY=$(grep "nvidia_api_key:" "$USER_YAML" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'" || echo "")
     if [ -z "$CURRENT_KEY" ]; then
         echo -en "${CYAN}⠿  Enter your NVIDIA NIM API Key (Optional but recommended): ${NC}" >&3
         read -s API_KEY
@@ -311,21 +339,26 @@ fi
 # ─── Final Validation ───
 section "FINAL SECURITY AUDIT"
 if command -v bwrap &>/dev/null; then
-    ok "Sandbox Engine: VALID ($(bwrap --version | head -n 1))"
+    ok "Sandbox Engine: VALID ($(bwrap --version 2>/dev/null | head -n 1))"
 else
-    warn "Sandbox Engine: MISSING. Tactical isolation is compromised."
-    warn "Run: sudo apt install bubblewrap"
+    warn "Sandbox Engine: MISSING. Run: sudo apt install bubblewrap"
+fi
+
+if command -v myth &>/dev/null; then
+    ok "MYTH Binary: VALID ($(myth --version 2>/dev/null | head -n 1 || echo 'installed'))"
+else
+    warn "MYTH Binary: NOT FOUND in PATH."
 fi
 
 # ─── Done ───
-echo -e "\n${GREEN}${BOLD}  ✅ MYTH DEPLOYMENT COMPLETE!${NC}"
-echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "  ${BOLD}Operative Archive:${NC} $USER_YAML"
-echo -e "  ${BOLD}Tactical Binary:${NC}   /usr/local/bin/myth"
-echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo -e "  ${BOLD}Next Objectives:${NC}"
-echo -e "    1. ${CYAN}myth sync${NC}        - Synchronize 3000+ Kali tools"
-echo -e "    2. ${CYAN}myth check${NC}       - Perform final system health check"
-echo -e "    3. ${CYAN}myth scan <target>${NC} - Launch your first mission"
-echo ""
+echo -e "\n${GREEN}${BOLD}  ✅ MYTH DEPLOYMENT COMPLETE!${NC}" >&3
+echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+echo -e "  ${BOLD}Operative Archive:${NC} $USER_YAML" >&3
+echo -e "  ${BOLD}Tactical Binary:${NC}   /usr/local/bin/myth" >&3
+echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+echo "" >&3
+echo -e "  ${BOLD}Next Objectives:${NC}" >&3
+echo -e "    1. ${CYAN}myth sync${NC}        - Synchronize 3000+ Kali tools" >&3
+echo -e "    2. ${CYAN}myth check${NC}       - Perform final system health check" >&3
+echo -e "    3. ${CYAN}myth scan <target>${NC} - Launch your first mission" >&3
+echo "" >&3

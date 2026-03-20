@@ -67,8 +67,13 @@ cp -r "$PROJECT_ROOT/docs/dist"/. .
 
 cp "$PROJECT_ROOT/scripts/install.sh" .
 cp "$PROJECT_ROOT/scripts/bootstrap.sh" .
+cp "$PROJECT_ROOT/scripts/uninstall.sh" .
 cp "$PROJECT_ROOT/myth.gpg" .  # Copy GPG public key for APT
-sed -i "s|__REPO_URL__|$REPO_URL|g;s|__PAGES_URL__|$PAGES_URL|g" install.sh bootstrap.sh
+
+VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$PROJECT_ROOT/Cargo.toml" | head -n 1)
+AGENT_NAME=$(grep "name:" "$PROJECT_ROOT/config/agent.yaml" | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')
+
+sed -i "s|__REPO_URL__|$REPO_URL|g;s|__PAGES_URL__|$PAGES_URL|g;s|__VERSION__|$VERSION|g;s|__AGENT_NAME__|$AGENT_NAME|g" install.sh bootstrap.sh uninstall.sh
 
 # ── 4.5. Handle Custom Domain (CNAME) ──
 DOMAIN=$(echo "$PAGES_URL" | sed -E 's|https?://||; s|/.*||')

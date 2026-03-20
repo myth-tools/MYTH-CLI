@@ -23,6 +23,21 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# These placeholders are replaced by CI/CD during release
+AGENT_NAME="__AGENT_NAME__"
+VERSION="__VERSION__"
+
+# Fallback for local execution
+if [[ "$AGENT_NAME" == "__"*"__" ]]; then
+    if [ -f "config/agent.yaml" ]; then
+        AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')
+        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+    else
+        AGENT_NAME="MYTH"
+        VERSION="0.1.0"
+    fi
+fi
+
 # ─── Professional Logging & Trapping ───
 LOG_FILE="/tmp/myth-uninstall-$(date +%s).log"
 exec 3>&1 # Save stdout to fd 3
@@ -62,8 +77,8 @@ spinner() {
 }
 
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}" >&3
-echo -e "${CYAN}  [ TACTICAL DECOMMISSIONING & SANITIZATION ]${NC}" >&3
-echo -e "  ${BOLD}Initiating target neutralization...${NC}\n" >&3
+echo -e "${CYAN}  [ ${AGENT_NAME} — TACTICAL DECOMMISSIONING & SANITIZATION ]${NC}" >&3
+echo -e "  ${BOLD}Initiating target neutralization (v${VERSION})...${NC}\n" >&3
 info "Decommissioning logs initiated at: $LOG_FILE"
 
 # Check for sudo

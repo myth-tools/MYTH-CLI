@@ -17,11 +17,17 @@ CONFIG_DIR="${REAL_HOME}/.config/myth"
 BUILD_DIR="/tmp/myth-build-$(date +%s)"
 
 # ─── Dynamic Repository Configuration ───
+# These placeholders are replaced by CI/CD during release
 REPO_URL="__REPO_URL__"
 PAGES_URL="__PAGES_URL__"
+VERSION="__VERSION__"
+AGENT_NAME="__AGENT_NAME__"
 
+# Fallback for local execution (if placeholders were not replaced)
 if [[ "$REPO_URL" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
+        AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\''":]*([^"'\'']+)["'\''":]*.*/\1/' | awk '{print $1}')
+        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
         REPO_URL=$(grep "repository_url:" config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\''"]?([^"'\'']+)["'\''"]?.*/\1/')
         PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
         PAGES_URL="https://$PAGES_DOMAIN"
@@ -86,8 +92,8 @@ require_command() {
 
 # ─── Start ───
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}" >&3
-echo -e "${CYAN}  [ DIGITAL RECONNAISSANCE & TACTICAL AI AGENT ]${NC}" >&3
-echo -e "  ${BOLD}Version: 1.0.0-Stable${NC}\n" >&3
+echo -e "${CYAN}  [ ${AGENT_NAME} — DIGITAL RECONNAISSANCE & TACTICAL AI ]${NC}" >&3
+echo -e "  ${BOLD}Version: ${VERSION}${NC}\n" >&3
 info "Logs: $LOG_FILE"
 
 # ─── Check OS ───

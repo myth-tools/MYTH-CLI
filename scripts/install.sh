@@ -328,11 +328,12 @@ fi
 
 # ─── Operative Identification ───
 section "OPERATIVE INITIALIZATION"
-if [ -t 0 ]; then
+# Support interaction even when piped (read from /dev/tty)
+if [ -c /dev/tty ]; then
     CURRENT_NAME=$(grep "user_name:" "$USER_YAML" 2>/dev/null | awk '{print $2}' | tr -d '"'\''' || echo "")
     if [ -z "$CURRENT_NAME" ] || [ "$CURRENT_NAME" = "Chief" ]; then
         echo -en "${CYAN}⠿  Enter your Operative Handle [Default: Chief]: ${NC}" >&3
-        read OPERATIVE_NAME || OPERATIVE_NAME=""
+        read OPERATIVE_NAME < /dev/tty || OPERATIVE_NAME=""
         OPERATIVE_NAME=${OPERATIVE_NAME:-Chief}
         sed -i "s/user_name: .*/user_name: \"$OPERATIVE_NAME\"/" "$USER_YAML"
         ok "Handle: $OPERATIVE_NAME"
@@ -341,7 +342,7 @@ if [ -t 0 ]; then
     CURRENT_KEY=$(grep "nvidia_api_key:" "$USER_YAML" 2>/dev/null | awk '{print $2}' | tr -d '"'\''' || echo "")
     if [ -z "$CURRENT_KEY" ]; then
         echo -en "${CYAN}⠿  NVIDIA NIM API Key (optional, press Enter to skip): ${NC}" >&3
-        read -s API_KEY || API_KEY=""
+        read -s API_KEY < /dev/tty || API_KEY=""
         echo "" >&3
         if [ -n "$API_KEY" ]; then
             sed -i "s/nvidia_api_key: .*/nvidia_api_key: \"$API_KEY\"/" "$USER_YAML"
@@ -351,7 +352,7 @@ if [ -t 0 ]; then
         fi
     fi
 else
-    info "Non-interactive mode. Skipping identification."
+    info "Non-interactive environment detected. Skipping identification."
 fi
 
 # ─── Final Validation ───
@@ -374,9 +375,36 @@ echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━
 echo -e "  ${BOLD}Config:${NC}  $USER_YAML" >&3
 echo -e "  ${BOLD}Binary:${NC}  /usr/local/bin/myth" >&3
 echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
-echo "" >&3
-echo -e "  ${BOLD}Next:${NC}" >&3
-echo -e "    1. ${CYAN}myth sync${NC}        - Synchronize 3000+ Kali tools" >&3
-echo -e "    2. ${CYAN}myth check${NC}       - System health check" >&3
-echo -e "    3. ${CYAN}myth scan <target>${NC} - First mission" >&3
+
+# Dynamic Reminders based on configuration state
+section "POST-MISSION CHECKLIST"
+
+# 1. Identity Check
+CURRENT_NAME=$(grep "user_name:" "$USER_YAML" 2>/dev/null | awk '{print $NF}' | tr -d '"'\' || echo "Chief")
+if [ "$CURRENT_NAME" = "Chief" ]; then
+    audit "${YELLOW}Identity Unset:${NC}  Your handle is currently 'Chief'. Update it in your config for better logs."
+fi
+
+# 2. Neural Link Check (API Key)
+CURRENT_KEY=$(grep "nvidia_api_key:" "$USER_YAML" 2>/dev/null | awk '{print $NF}' | tr -d '"'\' || echo "")
+if [ -z "$CURRENT_KEY" ]; then
+    audit "${RED}Neural Link Offline:${NC} NVIDIA API Key is missing. Autonomous reasoning is disabled."
+    audit "        ↳ Get one at: https://build.nvidia.com/"
+    audit "        ↳ Set it in: $USER_YAML"
+fi
+
+# 3. Tactical Sync Reminder
+audit "${CYAN}Arsenal Preparation:${NC} Run 'myth sync' to download the 3000+ tool definitions."
+
+echo -e "\n  ${BOLD}TACTICAL NEXT STEPS:${NC}" >&3
+echo -e "    1. ${CYAN}myth sync${NC}           - Synchronize mission tools & metadata" >&3
+echo -e "    2. ${CYAN}myth check${NC}          - Operational environment audit" >&3
+echo -e "    3. ${CYAN}myth scan <target>${NC}    - Initiate autonomous reconnaissance" >&3
+
+echo -e "\n  ${BOLD}TACTICAL NEXUS (Full Docs):${NC}" >&3
+echo -e "    ${PAGES_URL} (Check /installation and /quickstart)" >&3
+echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+
+# Record installation metric (local)
+date +%s > "${CONFIG_DIR}/.installed_at" 2>/dev/null || true
 echo "" >&3

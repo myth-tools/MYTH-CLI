@@ -92,6 +92,13 @@ err()     { echo -e "${RED}✘  [FATAL]${NC} $1" >&3; exit 1; }
 audit()   { echo -e "${CYAN}⠿${NC}  $1" >&3; }
 section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}" >&3; }
 
+# Dependency verification utility
+require_command() {
+    if ! command -v "$1" &>/dev/null; then
+        err "$1 is required but not installed. Tactical deployment aborted."
+    fi
+}
+
 # Progress spinner for long operations
 spinner() {
     local pid=$1
@@ -133,7 +140,10 @@ audit "ARCH: $ARCH ($RUST_TARGET)"
 
 if [ -d "$CONFIG_DIR" ]; then audit "Persistent profile detected at $CONFIG_DIR"; fi
 if command -v bwrap &>/dev/null; then ok "Sandboxing engine (Bubblewrap) verified"; else warn "Sandboxing engine missing. Procedural isolation will be degraded."; fi
-if command -v rustc &>/dev/null; then ok "Compiler detected: $(rustc --version | head -n 1)"; fi
+if command -v rustc &>/dev/null; then 
+    COMPILER_VERSION=$(rustc --version 2>/dev/null | head -n 1 || echo "detected but not configured (check rustup)")
+    ok "Compiler detected: $COMPILER_VERSION"
+fi
 
 section "DEPENDENCY RESOLUTION"
 info "Synchronizing tactical dependencies..."
@@ -203,9 +213,9 @@ fi
         info "Installing Rust toolchain..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" || true
-        ok "Rust installed: $(rustc --version)"
+        ok "Rust installed."
     else
-        ok "Rust already installed: $(rustc --version)"
+        ok "Rust already present (managed by rustup/system)."
     fi
 
     # ─── Build MYTH ───

@@ -77,12 +77,23 @@ Get MYTH running on your Kali system in under 60 seconds with our professional r
 > [!TIP]
 > **No Runtime Dependencies**: MYTH is distributed as a high-performance native binary. You do **NOT** need Rust, Python, or Go installed to run the agent.
 
-### 🛠️ Tactical Installation
+### 🛠️ Tactical Installation (Recommended)
 
-Run this one-liner to deploy MYTH on your system. This automatically configures your APT repository, architecture, and core dependencies.
-
+**Deploy Latest Stable**:
 ```bash
 curl -sSL https://myth.work.gd/install.sh | sudo bash
+```
+
+**Deploy Specific Version**:
+```bash
+curl -sSL https://myth.work.gd/install.sh | sudo VERSION=0.1.0 bash
+```
+
+### ⚡ Manual Control (Bootstrap Only)
+If you prefer to configure the repository without immediate installation, use the bootstrap protocol:
+```bash
+curl -sSL https://myth.work.gd/bootstrap.sh | sudo bash
+sudo apt update && sudo apt install myth
 ```
 
 ---
@@ -133,16 +144,18 @@ Command your agent using professional mission profiles.
 MYTH utilizes a military-inspired defense-in-depth security model to ensure that autonomous operations never compromise your workstation.
 - **Read-Only Host Access:** Tools run in an ephemeral namespace; they cannot modify your system files.
 - **Weapon System Hardening:** MYTH automatically injects stability flags into known tools (like forcing `nmap` Connect Scans or `sqlmap` batch mode) to prevent system hangs or crashes.
-- **Auto-Recovery:** If a tool connection fails mid-mission, MYTH's "Phoenix" engine autonomously restarts it without dropping the mission.
+- **Tactical Decommissioning:** Every installation includes a built-in clean-up protocol. Run `curl -sSL https://myth.work.gd/uninstall.sh | sudo bash` or `sudo apt purge myth` for total sanitization.
 
 ---
 
-## 🏛️ Tactical Nexus (Official Website)
+## 🏛️ Tactical Nexus & Version Registry
 
-For deep telemetry, advanced documentation, and professional release vectors, access the official **MYTH Web Nexus**.
+For deep telemetry, advanced documentation, and the professional version archive, access the official **MYTH Web Nexus**.
 
 > [!TIP]
 > **ACCESS GRANTED**: [https://myth.work.gd](https://myth.work.gd)
+>
+> **VERSION REGISTRY**: [https://myth.work.gd/#/versions](https://myth.work.gd/#/versions)
 
 ---
 

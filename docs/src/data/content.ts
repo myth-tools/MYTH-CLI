@@ -4,6 +4,7 @@ export const sidebarNav = [
     items: [
       { title: 'Introduction', path: '/' },
       { title: 'Installation', path: '/installation' },
+      { title: 'Versions', path: '/versions' },
       { title: 'Quick Start', path: '/quickstart' },
       { title: 'Configuration', path: '/configuration' },
     ],

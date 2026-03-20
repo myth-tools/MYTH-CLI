@@ -28,8 +28,13 @@ export default function InstallationPage() {
       </div>
 
       <h2 className="text-xl font-bold text-white mb-4">Tactical Deployment</h2>
-      <p className="text-cyber-text/80 mb-4">Run the following one-liner to deploy MYTH on your Kali Linux system. This automatically configures your APT repository, signs the authority keys, and fulfills all tactical dependencies.</p>
-      <CodeBlock lang="bash" title="install.sh" code={`curl -sSL ${pagesUrl}/install.sh | sudo bash`} />
+      <p className="text-cyber-text/80 mb-2">Deploy the latest stable version of MYTH on your system:</p>
+      <CodeBlock lang="bash" title="Install Latest" code={`curl -sSL ${pagesUrl}/install.sh | sudo bash`} />
+
+      <h2 className="text-xl font-bold text-white mb-4 mt-8">Version Selection</h2>
+      <p className="text-cyber-text/80 mb-2">To deploy a specific tactical release, pass the <code className="text-cyber-primary">VERSION</code> environment variable:</p>
+      <CodeBlock lang="bash" title="Install Specific Version" code={`curl -sSL ${pagesUrl}/install.sh | sudo VERSION=0.1.0 bash`} />
+      <p className="text-xs text-cyber-dim mt-2 italic">Search for available releases in the <a href="#/versions" className="text-cyber-primary hover:underline">Version Registry</a>.</p>
 
       <h2 className="text-xl font-bold text-white mb-4 mt-8">🚨 Mandatory Setup</h2>
       <p className="text-cyber-text/80 mb-3">Complete these steps immediately after installation to activate your operative:</p>

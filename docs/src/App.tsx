@@ -18,6 +18,7 @@ import ScriptsPage from './pages/ScriptsPage';
 import TechStackPage from './pages/TechStackPage';
 import VitalsPage from './pages/VitalsPage';
 import SubdomainFetchPage from './pages/SubdomainFetchPage';
+import VersionsPage from './pages/VersionsPage';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/installation" element={<InstallationPage />} />
+          <Route path="/versions" element={<VersionsPage />} />
           <Route path="/quickstart" element={<QuickStartPage />} />
           <Route path="/configuration" element={<ConfigurationPage />} />
           <Route path="/vitals" element={<VitalsPage />} />

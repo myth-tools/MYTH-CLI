@@ -18,13 +18,16 @@ BUILD_DIR="/tmp/myth-build-$(date +%s)"
 
 # ─── Dynamic Repository Configuration ───
 # These placeholders are replaced by CI/CD during release
+RELEASE_VERSION="__VERSION__"
 REPO_URL="__REPO_URL__"
 PAGES_URL="__PAGES_URL__"
-VERSION="__VERSION__"
 AGENT_NAME="__AGENT_NAME__"
 
+# Priority: 1. Environment Variable, 2. CI/CD Injected, 3. Local Discovery
+VERSION="${VERSION:-$RELEASE_VERSION}"
+
 # Fallback for local execution (if placeholders were not replaced)
-if [[ "$REPO_URL" == "__"*"__" ]]; then
+if [[ "$VERSION" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
         AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\''":]*([^"'\'']+)["'\''":]*.*/\1/' | awk '{print $1}')
         VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
@@ -193,8 +196,16 @@ if [ -f "/etc/apt/keyrings/myth.gpg" ] && [ -s "/etc/apt/keyrings/myth.gpg" ]; t
         -o Dir::Etc::sourceparts="-" \
         -o APT::Get::List-Cleanup="0" -qq 2>&1 | tee -a "$LOG_FILE"; then
 
-        info "Installing MYTH package..."
-        if apt-get install -y myth 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3; then
+        # Determine target package (latest or specific)
+        INSTALL_TARGET="myth"
+        if [ "$VERSION" != "__VERSION__" ]; then
+            INSTALL_TARGET="myth=$VERSION"
+            info "Targeting specific version: $VERSION"
+        else
+            info "Installing latest version..."
+        fi
+
+        if apt-get install -y $INSTALL_TARGET 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3; then
             APT_SUCCESS=true
             ok "MYTH deployed via APT."
         fi

@@ -39,6 +39,8 @@ MYTH_CLI_Deep_Audit_Report.md
 src/bin
 
 # Security & Distribution
+myth-private.key
+myth.gpg
 self_hosted_repo_guide.md
 tools_list.txt
 .cargo

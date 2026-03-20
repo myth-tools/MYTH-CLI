@@ -11,6 +11,7 @@
 set -euo pipefail
 
 # ─── Cleanup Trap ───
+CONFIG_DIR="$HOME/.config/myth"
 BUILD_DIR="/tmp/myth-build-$(date +%s)"
 cleanup() {
     if [ -d "$BUILD_DIR" ]; then
@@ -244,7 +245,6 @@ fi
 fi
 
 # ─── Install Config ───
-CONFIG_DIR="$HOME/.config/myth"
 USER_YAML="$CONFIG_DIR/user.yaml"
 
 if [ ! -f "$USER_YAML" ]; then

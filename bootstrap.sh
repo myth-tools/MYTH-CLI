@@ -23,6 +23,24 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# These placeholders are replaced by CI/CD during release
+AGENT_NAME="MYTH"
+VERSION="0.1.0"
+PAGES_URL="https://myth.work.gd"
+
+# Fallback for local execution
+if [[ "$AGENT_NAME" == "__"*"__" ]]; then
+    if [ -f "config/agent.yaml" ]; then
+        AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')
+        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+        PAGES_URL=$(grep "pages_url:" config/agent.yaml | head -n 1 | sed -E 's/.*pages_url:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/')
+    else
+        AGENT_NAME="MYTH"
+        VERSION="0.1.0"
+        PAGES_URL="https://myth.work.gd"
+    fi
+fi
+
 # High-fidelity status indicators
 info()    { echo -e "${BLUE}⚡${NC}  ${BOLD}$1${NC}"; }
 ok()      { echo -e "${GREEN}✔${NC}  $1"; }
@@ -32,11 +50,10 @@ audit()   { echo -e "${CYAN}⠿${NC}  $1"; }
 section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}"; }
 
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}"
-echo -e "${CYAN}  [ TACTICAL REPOSITORY BOOTSTRAP ]${NC}"
-echo -e "  ${BOLD}Establishing neural link to primary gateway...${NC}\n"
+echo -e "${CYAN}  [ ${AGENT_NAME} — TACTICAL REPOSITORY BOOTSTRAP ]${NC}"
+echo -e "  ${BOLD}Establishing neural link (v${VERSION})...${NC}\n"
 
 # ─── Configuration Discovery ───
-PAGES_URL="https://myth.work.gd"
 
 # 1. Signing Authority Extraction
 section "SIGNING AUTHORITY EXTRACTION"

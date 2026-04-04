@@ -1,0 +1,314 @@
+import { PageHeader } from "../components/Layout";
+import { VERSION } from "../data/metadata";
+
+const categories = [
+	{
+		name: "Runtime & Language",
+		deps: [
+			{
+				name: "Rust",
+				ver: "Edition 2021",
+				why: "Memory safety, zero-cost abstractions, no GC pauses, native binaries",
+				desc: "Systems language for the entire CLI",
+			},
+			{
+				name: "Tokio",
+				ver: "1.x",
+				why: "Async I/O runtime required for concurrent tool execution and streaming LLM responses",
+				desc: "Async runtime with full feature set",
+			},
+		],
+	},
+	{
+		name: "AI & LLM",
+		deps: [
+			{
+				name: "Rig (rig-core)",
+				ver: "0.32.0",
+				why: "The only production-ready Rust agent framework with tool calling, streaming, and OpenAI-compatible API",
+				desc: "Agent framework — tool calling, streaming, prompt management",
+			},
+			{
+				name: "NVIDIA NIM",
+				ver: "API v1",
+				why: "Provides GPU-accelerated inference for DeepSeek R1 (reasoning) and LLaMA 3.1 70B (synthesis) without local GPU",
+				desc: "OpenAI-compatible LLM inference API",
+			},
+		],
+	},
+	{
+		name: "MCP Protocol",
+		deps: [
+			{
+				name: "rust-mcp-sdk",
+				ver: "0.8.3",
+				why: "Official-compatible Rust MCP implementation supporting both stdio and SSE transports",
+				desc: "MCP server & client implementation",
+			},
+			{
+				name: "rust-mcp-schema",
+				ver: "0.9.6",
+				why: "Strongly-typed MCP JSON-RPC schema; prevents protocol-level bugs at compile time",
+				desc: "MCP JSON-RPC typed schema",
+			},
+		],
+	},
+	{
+		name: "State Management",
+		deps: [
+			{
+				name: "petgraph",
+				ver: "0.6",
+				why: "Directed graph for the ReconGraph state machine — tracks phase transitions, findings, and target relationships",
+				desc: "Directed graph for ReconGraph",
+			},
+			{
+				name: "dashmap",
+				ver: "6",
+				why: "Lock-free concurrent hashmap for sharing session state across async tasks without deadlocks",
+				desc: "Concurrent hashmap for thread-safe state",
+			},
+		],
+	},
+	{
+		name: "CLI & TUI",
+		deps: [
+			{
+				name: "clap",
+				ver: "4",
+				why: "Industry-standard CLI parser; derive macros reduce boilerplate for 27 subcommands",
+				desc: "Command-line argument parsing",
+			},
+			{
+				name: "ratatui",
+				ver: "0.30",
+				why: "The gold-standard terminal UI framework for Rust; powers the multi-panel TUI with real-time streaming",
+				desc: "Terminal user interface framework",
+			},
+			{
+				name: "crossterm",
+				ver: "0.29",
+				why: "Cross-platform terminal control; works on Linux, macOS, Windows without platform-specific code",
+				desc: "Cross-platform terminal manipulation",
+			},
+			{
+				name: "rustyline",
+				ver: "17.0",
+				why: "GNU readline equivalent; provides history, tab completion, and line editing for the CLI fallback mode",
+				desc: "Interactive line editor with history and completion",
+			},
+		],
+	},
+	{
+		name: "Web & HTTP",
+		deps: [
+			{
+				name: "reqwest",
+				ver: "0.12",
+				why: "The de-facto HTTP client for Rust; used for NIM API calls, MCP SSE, and web reconnaissance",
+				desc: "HTTP client with streaming, compression, TLS",
+			},
+			{
+				name: "reqwest-eventsource",
+				ver: "0.6.0",
+				why: "Server-Sent Events support for MCP remote server connections (SSE transport)",
+				desc: "SSE client for MCP remote servers",
+			},
+			{
+				name: "headless_chrome",
+				ver: "1.0.21",
+				why: "CDP (Chrome DevTools Protocol) automation — fallback for complex Chromium-only scenarios",
+				desc: "CDP-based headless browser automation",
+			},
+			{
+				name: "fantoccini",
+				ver: "0.22.1",
+				why: "WebDriver-based automation for sites requiring full JavaScript execution and authentication",
+				desc: "WebDriver-based browser automation",
+			},
+			{
+				name: "scraper",
+				ver: "0.25.0",
+				why: "Zero-dependency HTML parser; CSS selector queries for fast content extraction without a browser",
+				desc: "HTML parsing and CSS selector queries",
+			},
+		],
+	},
+	{
+		name: "Serialization & Data",
+		deps: [
+			{
+				name: "serde",
+				ver: "1",
+				why: "Universal serialization framework; used for YAML config, JSON tool schemas, and MCP protocol",
+				desc: "Serialization framework",
+			},
+			{
+				name: "serde_json",
+				ver: "1",
+				why: "Required for MCP JSON-RPC and Rig.rs tool definitions (JSON Schema)",
+				desc: "JSON parsing and generation",
+			},
+			{
+				name: "serde_yaml",
+				ver: "0.9",
+				why: "Human-readable config format; used for agent.yaml and user.yaml configuration files",
+				desc: "YAML config parsing",
+			},
+			{
+				name: "schemars",
+				ver: "1.2.1",
+				why: "Auto-generates JSON Schema from Rust structs — required by Rig.rs tool definitions for LLM understanding",
+				desc: "JSON Schema generation for tool definitions",
+			},
+		],
+	},
+	{
+		name: "System & Security",
+		deps: [
+			{
+				name: "nix",
+				ver: "0.29",
+				why: "Low-level Unix APIs for process management, signal handling, and sandbox enforcement",
+				desc: "Unix system APIs (process, signal)",
+			},
+			{
+				name: "sha2",
+				ver: "0.10.9",
+				why: "SHA-256 integrity checks for tool binary verification and artifact fingerprinting",
+				desc: "SHA-256 hashing",
+			},
+			{
+				name: "uuid",
+				ver: "1",
+				why: "UUID v4 for session IDs, finding IDs, and memory store entry keys",
+				desc: "UUID v4 generation",
+			},
+			{
+				name: "notify",
+				ver: "8.2.0",
+				why: "Filesystem watcher for config hot-reload — detects user.yaml changes without restarting the agent",
+				desc: "Filesystem watcher for config hot-reload",
+			},
+		],
+	},
+	{
+		name: "Observability",
+		deps: [
+			{
+				name: "tracing",
+				ver: "0.1",
+				why: "Structured logging with spans; zero-cost in release when disabled",
+				desc: "Structured logging framework",
+			},
+			{
+				name: "tracing-subscriber",
+				ver: "0.3",
+				why: "Log filtering and formatting; respects RUST_LOG env var for level control",
+				desc: "Log filtering and formatting",
+			},
+			{
+				name: "color-eyre",
+				ver: "0.6",
+				why: "Rich error reports with call chains; dramatically improves debugging experience",
+				desc: "Colorized error reporting with context",
+			},
+			{
+				name: "owo-colors",
+				ver: "4.3.0",
+				why: "Zero-allocation terminal colors; cheaper than ansi_term and supports NO_COLOR env var",
+				desc: "Zero-allocation terminal colors",
+			},
+			{
+				name: "indicatif",
+				ver: "0.18.4",
+				why: "Premium progress bars and spinners for long-running operations (agent startup, subdomain scan)",
+				desc: "Progress bars and spinners",
+			},
+		],
+	},
+];
+
+export default function TechStackPage() {
+	return (
+		<div>
+			<PageHeader
+				title="Tech Stack"
+				description="Complete dependency breakdown — every crate MYTH depends on, the version pinned, and the specific reason it was chosen over alternatives."
+				badge="Reference"
+			/>
+
+			{/* Build Profile */}
+			<div className="glass-panel rounded-xl p-5 mb-10 border border-cyber-primary/20">
+				<h2 className="text-base font-bold text-cyber-primary mb-4 uppercase tracking-wider flex items-center gap-2">
+					<span className="w-2 h-2 rounded-full bg-cyber-primary animate-pulse" />
+					Release Build Profile
+				</h2>
+				<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+					{[
+						{ label: "opt-level", value: "3 (max speed)" },
+						{ label: "LTO", value: "true (fat)" },
+						{ label: "codegen-units", value: "1 (max opt)" },
+						{ label: "panic", value: "abort" },
+						{ label: "strip", value: "true (no debug)" },
+						{ label: "binary size", value: "~8MB" },
+						{ label: "target", value: "x86_64 / aarch64" },
+						{ label: "version", value: VERSION },
+					].map((m) => (
+						<div key={m.label} className="bg-white/5 rounded-lg p-3 border border-white/5">
+							<p className="text-[10px] text-cyber-dim uppercase font-bold tracking-wider mb-1">
+								{m.label}
+							</p>
+							<p className="text-sm font-mono text-cyber-primary font-bold">{m.value}</p>
+						</div>
+					))}
+				</div>
+				<p className="text-xs text-cyber-dim leading-relaxed">
+					With <code className="text-cyber-primary">panic = abort</code> and fat LTO, the final
+					binary contains no unwinding infrastructure — reducing binary size and eliminating an
+					entire class of runtime overhead. The{" "}
+					<code className="text-cyber-primary">strip = true</code> option removes all debug symbols,
+					keeping the binary lean for distribution across APT, RPM, Arch, Snap, and binary releases.
+				</p>
+			</div>
+
+			{/* Dependency tables */}
+			{categories.map((cat) => (
+				<div key={cat.name} className="mb-10">
+					<h2 className="text-lg font-bold text-white mb-4 flex items-center gap-3">
+						{cat.name}
+						<span className="text-[10px] font-mono text-cyber-dim border border-cyber-border px-2 py-0.5 rounded">
+							{cat.deps.length} crates
+						</span>
+					</h2>
+					<div className="table-container">
+						<table className="w-full text-sm docs-table rounded-xl overflow-hidden">
+							<thead>
+								<tr>
+									<th className="py-3 px-4 text-left">Crate</th>
+									<th className="py-3 px-4 text-left">Version</th>
+									<th className="py-3 px-4 text-left">Purpose</th>
+									<th className="py-3 px-4 text-left">Why Chosen</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-cyber-border/30">
+								{cat.deps.map((d) => (
+									<tr key={d.name} className="hover:bg-white/[0.02] transition-colors">
+										<td className="py-3 px-4">
+											<code className="text-cyber-primary text-xs font-mono font-bold">
+												{d.name}
+											</code>
+										</td>
+										<td className="py-3 px-4 text-cyber-dim text-xs font-mono">{d.ver}</td>
+										<td className="py-3 px-4 text-cyber-text/70 text-xs">{d.desc}</td>
+										<td className="py-3 px-4 text-cyber-dim/80 text-xs leading-relaxed">{d.why}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}

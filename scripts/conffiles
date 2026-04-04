@@ -1,0 +1,5 @@
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Configuration Registry (conffiles)
+#  Syncs: DEB conffiles, RPM %config, Arch backup=()
+# ═══════════════════════════════════════════════════
+/etc/myth/user.yaml

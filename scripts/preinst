@@ -1,0 +1,98 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Maintainer Script (preinst)
+#  Supports: Debian, Fedora/RPM, Arch, Termux
+# ═══════════════════════════════════════════════════
+set -e
+
+# ─── Tactical UI Standard ───
+myth_log() {
+    # Only use colors if stdout is a TTY
+    if [ -t 1 ]; then
+        CYAN='\033[0;36m'
+        # shellcheck disable=SC2034
+        GREEN='\033[0;32m'
+        NC='\033[0m'
+        printf "${CYAN}[MYTH]${NC} %s\n" "$1"
+    else
+        printf "[MYTH] %s\n" "$1"
+    fi
+}
+
+# ─── OS Detection ───
+# shellcheck disable=SC2034
+DISTRO_FAMILY="debian"
+IS_TERMUX=false
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    DISTRO_FAMILY="termux"
+    IS_TERMUX=true
+elif [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    # shellcheck disable=SC2034
+    case "${ID:-}" in
+        fedora|rhel|centos|rocky|alma|ol|amzn) DISTRO_FAMILY="fedora" ;;
+        arch|manjaro|endeavouros|garuda|artix)   DISTRO_FAMILY="arch" ;;
+        alpine) DISTRO_FAMILY="alpine" ;;
+        opensuse*|sles) DISTRO_FAMILY="opensuse" ;;
+        *) DISTRO_FAMILY="debian" ;;
+    esac
+fi
+
+# ─── Tactical Environment Audit ───
+# shellcheck disable=SC2034
+if [ "$IS_TERMUX" = true ]; then
+    ROOT_DIR="$PREFIX"
+    BIN_DIR="$PREFIX/bin"
+else
+    ROOT_DIR=""
+    [ -d "/usr/local/bin" ] && BIN_DIR="/usr/local/bin" || BIN_DIR="/usr/bin"
+fi
+
+case "$1" in
+    # Debian: install | upgrade | RPM: 1 (install), 2 (upgrade)
+    install|upgrade|1|2)
+        # Pre-flight checks before tactical deployment
+        if [ "$1" = "upgrade" ] || [ "$1" = "2" ]; then
+            myth_log "Upgrading mission core components ($2)..."
+            
+            # Version comparison (Don't downgrade without a warning or block)
+            # This logic tries to determine if the new version is older than the current
+            if command -v myth >/dev/null 2>&1; then
+                OLD_VER=$(myth --version 2>/dev/null | head -1 | awk '{print $NF}' || echo "0.0.0")
+                NEW_VER="$2"
+                # If we're on Debian, use dpkg for precision
+                if command -v dpkg >/dev/null 2>&1; then
+                    if dpkg --compare-versions "$NEW_VER" lt "$OLD_VER" 2>/dev/null; then
+                        myth_log "Warning: Downgrade detected ($OLD_VER -> $NEW_VER). Proceeding with caution."
+                    fi
+                fi
+            fi
+
+            # Backup old binary 
+            if [ -f "$BIN_DIR/myth" ]; then
+                cp "$BIN_DIR/myth" "$BIN_DIR/myth.bak" 2>/dev/null || true
+            fi
+
+            # Backup existing configuration
+            if [ -f "/etc/myth/user.yaml" ]; then
+                cp "/etc/myth/user.yaml" "/etc/myth/user.yaml.bak" 2>/dev/null || true
+                myth_log "Preserved operational configuration at /etc/myth/user.yaml.bak"
+            fi
+        else
+            myth_log "Initiating first-time tactical deployment..."
+        fi
+        ;;
+
+    abort-upgrade)
+        ;;
+
+    *)
+        echo "preinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

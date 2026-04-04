@@ -1,0 +1,38 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MYTH Tactical Operative
+GenericName=Tactical AI Agent
+GenericName[en_US]=Tactical AI Agent
+Comment=Ultra-fast AI-powered tactical reconnaissance agent for Linux
+Exec=myth chat
+Terminal=true
+Icon=utilities-terminal
+Categories=Network;Security;
+Keywords=AI;Penetration;Recon;Security;MCP;OSINT;Cyber;Digital;Intelligence;
+MimeType=x-scheme-handler/myth;
+StartupNotify=true
+StartupWMClass=myth
+X-GNOME-Autostart-enabled=false
+X-Creator-Name=Shesher Hasan
+X-Creator-Role=Chief Architect
+X-Creator-Contact=shesher0llms@gmail.com
+X-Creator-Organization=myth-tools
+X-Creator-Clearance=OPERATIVE-LEVEL-4 (SENIOR ARCHITECT)
+X-Creator-License=MYTH-INSTITUTIONAL-COMMERCIAL-2026-BETA
+Actions=chat;check;help;
+
+[Desktop Action chat]
+Name=Open Tactical Chat
+Exec=myth chat
+Terminal=true
+
+[Desktop Action check]
+Name=Run System Diagnostics
+Exec=myth check
+Terminal=true
+
+[Desktop Action help]
+Name=View Tactical Help
+Exec=myth help
+Terminal=true

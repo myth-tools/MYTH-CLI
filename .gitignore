@@ -1,0 +1,76 @@
+# Build artifacts
+/target/
+
+# IDE
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Workspace (should never be committed)
+/mnt/myth-workspace/
+
+# private
+notes/
+.agents/
+
+# local user config bounds
+.config/myth/
+
+# local binaries
+find_rig_chat
+
+# others
+MYTH_CLI_Deep_Audit_Report.md
+src/bin
+
+package_runners/overlay/
+package_runners/parts/
+package_runners/prime/
+package_runners/stage/
+
+# Security & Distribution
+# WARNING: myth-private.key contains the GPG signing private key — NEVER commit this.
+/package_runners/.npmrc
+/.npmrc
+myth-private.key
+myth.gpg
+self_hosted_repo_guide.md
+tools_list.txt
+.cargo
+config/.myth_history.db
+config/.myth_history.db-shm
+config/.myth_history.db-wal
+ultimate_torture_test.md
+examples/
+# Secret file patterns
+*.pem
+*.crt
+*.key
+
+# ─── Recursive Artifact Hardening ───
+**/node_modules/
+**/dist/
+**/build/
+**/target/
+**/vendor/
+**/.venv/
+**/__pycache__/
+**/*.whl
+**/*.deb
+**/*.snap
+**/*.tar.gz
+**/*.tgz

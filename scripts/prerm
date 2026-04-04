@@ -1,0 +1,87 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Maintainer Script (prerm)
+#  Supports: Debian, Fedora/RPM, Arch, Termux
+# ═══════════════════════════════════════════════════
+set -e
+
+# ─── Tactical UI Standard ───
+myth_log() {
+    if [ -t 1 ]; then
+        CYAN='\033[0;36m'
+        # shellcheck disable=SC2034
+        GREEN='\033[0;32m'
+        NC='\033[0m'
+        printf "${CYAN}[MYTH]${NC} %s\n" "$1"
+    else
+        printf "[MYTH] %s\n" "$1"
+    fi
+}
+
+# ─── OS Detection ───
+# shellcheck disable=SC2034
+DISTRO_FAMILY="debian"
+IS_TERMUX=false
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    DISTRO_FAMILY="termux"
+    IS_TERMUX=true
+elif [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    # shellcheck disable=SC2034
+    case "${ID:-}" in
+        fedora|rhel|centos|rocky|alma|ol|amzn) DISTRO_FAMILY="fedora" ;;
+        arch|manjaro|endeavouros|garuda|artix)   DISTRO_FAMILY="arch" ;;
+        alpine) DISTRO_FAMILY="alpine" ;;
+        opensuse*|sles) DISTRO_FAMILY="opensuse" ;;
+        *) DISTRO_FAMILY="debian" ;;
+    esac
+fi
+
+# ─── Tactical Environment Audit ───
+# shellcheck disable=SC2034
+if [ "$IS_TERMUX" = true ]; then
+    ROOT_DIR="$PREFIX"
+    BIN_DIR="$PREFIX/bin"
+else
+    ROOT_DIR=""
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        BIN_DIR="/usr/local/bin"
+    else
+        BIN_DIR="/usr/bin"
+    fi
+fi
+# ─── Tactical Lifecycle Management ───
+case "$1" in
+    # Debian: remove | deconfigure | RPM: 0 (removal)
+    remove|deconfigure|0)
+        # 1. Graceful termination of active MYTH processes
+        myth_log "Deactivating active tactical processes..."
+        if command -v pkill >/dev/null 2>&1; then
+            pkill -u "$USER" -x myth 2>/dev/null || true
+            pkill -u "$USER" -x agent 2>/dev/null || true
+        else
+            # Fallback for systems without pkill
+            # shellcheck disable=SC2009
+            ps -u "$USER" -o pid,comm 2>/dev/null | grep -E 'myth|agent' | awk '{print $1}' | xargs kill -9 2>/dev/null || true
+        fi
+
+        # 2. Cleanly remove the tactical symlink if it points to us
+        if [ -L "$BIN_DIR/agent" ] && [ "$(readlink "$BIN_DIR/agent" 2>/dev/null)" = "$BIN_DIR/myth" ]; then
+            myth_log "Neutralizing tactical symlink $BIN_DIR/agent..."
+            rm -f "$BIN_DIR/agent"
+        fi
+        ;;
+
+    upgrade|failed-upgrade|1)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

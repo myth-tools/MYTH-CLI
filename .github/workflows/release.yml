@@ -1,0 +1,288 @@
+name: Release & Publish Mission Assets
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (skip publish steps)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  # ═══════════════════════════════════════════════════════
+  #  JOB 1: Cross-compile binaries for ALL architectures
+  #  Runs in parallel matrix — amd64 and arm64 simultaneously
+  # ═══════════════════════════════════════════════════════
+  build:
+    name: Build [${{ matrix.deb_arch }}]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deb_arch: amd64
+            rust_target: x86_64-unknown-linux-gnu
+            runner_arch: x86_64
+            use_cross: false
+          - deb_arch: arm64
+            rust_target: aarch64-unknown-linux-gnu
+            runner_arch: aarch64
+            use_cross: true
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install cross (for ARM builds)
+        if: matrix.use_cross == true
+        run: cargo install cross --locked
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.rust_target }}
+
+      - name: Build binary (native amd64)
+        if: matrix.use_cross == false
+        run: cargo build --release --locked
+
+      - name: Build binary (cross-compile arm64)
+        if: matrix.use_cross == true
+        run: cross build --release --locked --target ${{ matrix.rust_target }}
+
+      # ── Step ID added so outputs are statically referenceable (fixes linter warning) ──
+      - name: Package .deb
+        id: package_deb
+        run: |
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            cargo deb --no-build --target ${{ matrix.rust_target }}
+            DEB_FILE=$(find target/${{ matrix.rust_target }}/debian -name "myth_*.deb" -print -quit)
+            # Normalize .deb filename to target/debian/
+            mkdir -p target/debian
+            DEST="target/debian/myth_$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)-1_${{ matrix.deb_arch }}.deb"
+            cp "$DEB_FILE" "$DEST"
+            DEB_FILE="$DEST"
+          else
+            cargo deb --no-build
+            DEB_FILE=$(find target/debian -name "myth_*_amd64.deb" -print -quit \
+                    || find target/debian -name "myth_*.deb" -print -quit)
+          fi
+          # Use GITHUB_OUTPUT (step outputs) instead of GITHUB_ENV so the linter
+          # can statically verify the variable reference in subsequent steps.
+          echo "deb_file=${DEB_FILE}" >> "$GITHUB_OUTPUT"
+          echo "deb_arch=${{ matrix.deb_arch }}" >> "$GITHUB_OUTPUT"
+
+      # ── Step ID added so outputs are statically referenceable (fixes linter warning) ──
+      - name: Produce binary asset for GitHub Release
+        id: produce_binary
+        run: |
+          # Named consistently for the install.sh downloader
+          BINARY_SRC=""
+          if [ "${{ matrix.use_cross }}" = "true" ]; then
+            BINARY_SRC="target/${{ matrix.rust_target }}/release/myth"
+          else
+            BINARY_SRC="target/release/myth"
+          fi
+          BINARY_DEST="myth-${{ matrix.rust_target }}"
+          cp "$BINARY_SRC" "$BINARY_DEST"
+          # Use GITHUB_OUTPUT for static reference in upload step below
+          echo "binary_asset=${BINARY_DEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.deb_arch }}
+          # Reference via step output — fully statically verifiable by the linter
+          path: ${{ steps.package_deb.outputs.deb_file }}
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.deb_arch }}
+          # Reference via step output — fully statically verifiable by the linter
+          path: ${{ steps.produce_binary.outputs.binary_asset }}
+          if-no-files-found: error
+          retention-days: 1
+
+  # ═══════════════════════════════════════════════════════
+  #  JOB 2: Assemble APT repo, docs, and deploy
+  #  Runs after ALL arch builds complete successfully
+  # ═══════════════════════════════════════════════════════
+  publish:
+    name: Publish & Deploy
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    # NOTE: GPG_PRIVATE_KEY and GPG_PASSPHRASE are intentionally NOT declared here.
+    # Placing secrets in job-level env exposes them to ALL third-party actions in
+    # the job (checkout, upload-artifact, etc.). They are scoped to specific steps below.
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js (for Docs)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install aptly & tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aptly gnupg bubblewrap
+          (cd docs && npm ci --legacy-peer-deps)
+
+      # Secrets scoped ONLY to this step — not exposed to any third-party actions
+      - name: Import GPG Key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [[ -z "$GPG_PRIVATE_KEY" ]]; then
+            echo -e "\033[1;31m✘ [FATAL] GPG_PRIVATE_KEY is missing. Ensure it is configured in GitHub Secrets.\033[0m"
+            exit 1
+          fi
+
+          if echo "$GPG_PRIVATE_KEY" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          else
+            echo "$GPG_PRIVATE_KEY" | base64 -d | gpg --batch --import
+          fi
+          KEY_ID=$(gpg --list-secret-keys --keyid-format=SHORT | grep 'sec' | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "KEY_ID=$KEY_ID" >> "$GITHUB_ENV"
+
+      - name: Download ALL .deb artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          path: debs/
+          merge-multiple: true
+
+      - name: Download ALL binary artifacts  
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: binaries/
+          merge-multiple: true
+
+      - name: Build Tactical Documentation (React/Vite)
+        working-directory: docs
+        run: |
+          REPO_URL=$(grep "repository_url:" ../config/agent.yaml | head -n 1 | sed -E 's/.*repository_url:[[:space:]]*["'\'':]*([^"'\'':]*)["'\'':]*/\1/')
+          PAGES_URL=$(grep "pages_url:" ../config/agent.yaml | head -n 1 | sed -E 's/.*pages_url:[[:space:]]*["'\'':]*([^"'\'':]*)["'\'':]*/\1/' || echo "")
+          if [[ -z "$PAGES_URL" ]]; then
+              PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
+              PAGES_URL="https://$PAGES_DOMAIN"
+          fi
+          echo "VITE_REPO_URL=$REPO_URL" >> "$GITHUB_ENV"
+          echo "VITE_PAGES_URL=$PAGES_URL" >> "$GITHUB_ENV"
+          VITE_REPO_URL="$REPO_URL" VITE_PAGES_URL="$PAGES_URL" npm run build
+
+      # Secrets scoped ONLY to this step — not exposed to any third-party actions
+      - name: Build Multi-Arch APT Registry (Aptly)
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          REPO_URL="$VITE_REPO_URL"
+          PAGES_URL="$VITE_PAGES_URL"
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          [ -z "$VERSION" ] && { echo "::error::Could not parse VERSION from Cargo.toml"; exit 1; }
+
+          # Inject URLs into distribution scripts
+          # Use '@' as delimiter to safely handle URLs containing '/'
+          sed -i "s@__REPO_URL__@${REPO_URL}@g;s@__PAGES_URL__@${PAGES_URL}@g;s@__VERSION__@${VERSION}@g;s@__AGENT_NAME__@MYTH@g" \
+            scripts/install.sh scripts/bootstrap.sh scripts/uninstall.sh
+
+          # Setup aptly structure (idempotent — skip creation if repo already exists)
+          aptly repo show myth-repo > /dev/null 2>&1 \
+            || aptly repo create \
+                 -comment="MYTH Official" \
+                 -component=main \
+                 -distribution=stable \
+                 -architectures="amd64,arm64,all" \
+                 myth-repo
+
+          # Validate .deb files are present before attempting to add
+          DEB_COUNT=$(find debs -maxdepth 2 -name '*.deb' | wc -l)
+          if [ "$DEB_COUNT" -eq 0 ]; then
+            echo "::error::No .deb packages found in debs/ directory. Artifact download may have failed."
+            exit 1
+          fi
+
+          # Add ALL architecture packages
+          echo "--- Packages available (${DEB_COUNT} total) ---"
+          find debs -maxdepth 2 -name '*.deb' -print
+
+          find debs -maxdepth 2 -name '*.deb' -print0 | while IFS= read -r -d '' deb; do
+            echo "Adding: $deb"
+            aptly repo add -force-replace myth-repo "$deb"
+          done
+
+          # Publish with FULL multi-arch declaration
+          # This is the critical step — declares amd64 AND arm64 so Nethunter/Pi can find packages
+          aptly publish repo \
+            -architectures="amd64,arm64,all" \
+            -gpg-key="$KEY_ID" \
+            -batch=true \
+            -passphrase="$GPG_PASSPHRASE" \
+            -distribution=stable \
+            myth-repo
+
+          echo "--- APT Publication Status ---"
+          aptly publish list
+
+          # Unified Deployment Matrix (Website + APT Repo + Scripts)
+          mkdir -p deployment_payload
+          cp -r docs/dist/. deployment_payload/
+          cp -a ~/.aptly/public/. deployment_payload/
+          cp scripts/install.sh scripts/bootstrap.sh scripts/uninstall.sh deployment_payload/
+          gpg --armor --export "$KEY_ID" > deployment_payload/myth.gpg
+          cp config/user.yaml deployment_payload/
+
+          # Custom Domain (CNAME) synchronization
+          DOMAIN=$(echo "$PAGES_URL" | sed -E 's|https?://||; s|/.*||')
+          if [[ ! "$DOMAIN" =~ \.github\.io$ ]]; then
+              echo "$DOMAIN" > deployment_payload/CNAME
+          fi
+
+      - name: Create GitHub Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            debs/*.deb
+            binaries/myth-*
+          generate_release_notes: true
+          make_latest: true
+
+      - name: Deploy to GitHub Pages (Sovereign Sync)
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: deployment_payload
+          branch: gh-pages
+          clean: true

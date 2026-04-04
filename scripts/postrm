@@ -1,0 +1,145 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Maintainer Script (postrm)
+#  Supports: Debian, Fedora/RPM, Arch, Termux
+# ═══════════════════════════════════════════════════
+set -e
+
+# ─── Tactical UI Standard ───
+myth_log() {
+    if [ -t 1 ]; then
+        CYAN='\033[0;36m'
+        # shellcheck disable=SC2034
+        GREEN='\033[0;32m'
+        NC='\033[0m'
+        printf "${CYAN}[MYTH]${NC} %s\n" "$1"
+    else
+        printf "[MYTH] %s\n" "$1"
+    fi
+}
+
+# ─── OS Detection ───
+# shellcheck disable=SC2034
+DISTRO_FAMILY="debian"
+IS_TERMUX=false
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    DISTRO_FAMILY="termux"
+    IS_TERMUX=true
+elif [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    # shellcheck disable=SC2034
+    case "${ID:-}" in
+        fedora|rhel|centos|rocky|alma|ol|amzn) DISTRO_FAMILY="fedora" ;;
+        arch|manjaro|endeavouros|garuda|artix)   DISTRO_FAMILY="arch" ;;
+        *) DISTRO_FAMILY="debian" ;;
+    esac
+fi
+
+# ─── Tactical Environment Audit ───
+# shellcheck disable=SC2034
+if [ "$IS_TERMUX" = true ]; then
+    ROOT_DIR="$PREFIX"
+    BIN_DIR="$PREFIX/bin"
+    HOME_DIRS="$HOME"
+else
+    ROOT_DIR=""
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        BIN_DIR="/usr/local/bin"
+    else
+        BIN_DIR="/usr/bin"
+    fi
+    HOME_DIRS="$(find /home -maxdepth 1 -mindepth 1 -type d 2>/dev/null) /root"
+fi
+
+CONF_DIR="${ROOT_DIR}/etc/myth"
+LOG_DIR="${ROOT_DIR}/var/log/myth"
+LIB_DIR="${ROOT_DIR}/var/lib/myth"
+
+case "$1" in
+    # Debian: purge | RPM: 0 (final removal)
+    purge|0)
+        # ──────────────────────────────────────────────────────────────────
+        # Phase 1: Cleansing the Tactical Command Lines (Common to all removals)
+        # ──────────────────────────────────────────────────────────────────
+        for target_bin in "/usr/local/bin/agent" "/usr/bin/agent" "$PREFIX/bin/agent" "/usr/local/bin/chief" "/usr/bin/chief" "$PREFIX/bin/chief"; do
+            if [ -L "$target_bin" ] && [ "$(readlink "$target_bin" 2>/dev/null)" = "$BIN_DIR/myth" ]; then
+                myth_log "Neutralizing tactical symlink $target_bin..."
+                rm -f "$target_bin"
+            fi
+        done
+
+        # ──────────────────────────────────────────────────────────────────
+        # Phase 2: Total Ecosystem Scrubbing (Purge exclusive)
+        # ──────────────────────────────────────────────────────────────────
+        # 1. Neutralize system-wide configuration
+        if [ -d "$CONF_DIR" ]; then
+            myth_log "Scrubbing system configuration in $CONF_DIR..."
+            rm -rf "$CONF_DIR"
+        fi
+
+        # 2. Neutralize operational logs and local state
+        if [ -d "$LOG_DIR" ]; then
+            myth_log "Scrubbing operational logs in $LOG_DIR..."
+            rm -rf "$LOG_DIR"
+        fi
+        if [ -d "$LIB_DIR" ]; then
+            myth_log "Scrubbing tactical state in $LIB_DIR..."
+            rm -rf "$LIB_DIR"
+        fi
+
+        # 3. Cyber-grade Cleanup: Neutralizing provisioned assets
+        # Safe iteration over home directories (even with spaces)
+        find /home -maxdepth 1 -mindepth 1 -type d 2>/dev/null | while read -r home_dir; do
+            [ -d "$home_dir" ] || continue
+            # Clear operative configs in home
+            if [ -d "$home_dir/.config/myth" ]; then
+                myth_log "Neutralizing tactical context for $(basename "$home_dir")..."
+                rm -rf "$home_dir/.config/myth"
+            fi
+            # Neutralizing engines
+            if [ -f "$home_dir/.local/bin/lightpanda" ]; then
+                myth_log "Neutralizing provisioned engine for $(basename "$home_dir")..."
+                rm -f "$home_dir/.local/bin/lightpanda"
+            fi
+        done
+        # Handle /root separately
+        if [ -d "/root/.config/myth" ]; then
+            myth_log "Neutralizing tactical context for root..."
+            rm -rf "/root/.config/myth"
+        fi
+
+        # 4. Documentation & Completions Cleanup
+        for file in "/usr/share/man/man1/myth.1.gz" \
+                    "/usr/share/bash-completion/completions/myth" \
+                    "/usr/share/zsh/site-functions/_myth" \
+                    "/usr/share/fish/vendor_completions.d/myth.fish"; do
+            if [ -f "$file" ] || [ -L "$file" ]; then
+                myth_log "Neutralizing $file..."
+                rm -f "$file"
+            fi
+        done
+        # Scrub temporary tactical artifacts and stale lock files
+        rm -rf "${TMPDIR:-/tmp}/lightpanda_"* 2>/dev/null || true
+        rm -f "${TMPDIR:-/tmp}/.myth_install.lock" 2>/dev/null || true
+        ;;
+
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear|1)
+        # Tactical Cleanup: Only neutralize symlinks during non-purging removal
+        for target_bin in "/usr/local/bin/agent" "/usr/bin/agent" "$PREFIX/bin/agent" "/usr/local/bin/chief" "/usr/bin/chief" "$PREFIX/bin/chief"; do
+            if [ -L "$target_bin" ] && [ "$(readlink "$target_bin" 2>/dev/null)" = "$BIN_DIR/myth" ]; then
+                myth_log "Neutralizing tactical symlink $target_bin..."
+                rm -f "$target_bin"
+            fi
+        done
+        ;;
+
+    *)
+        echo "postrm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

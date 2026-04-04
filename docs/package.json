@@ -1,0 +1,51 @@
+{
+	"name": "docs",
+	"private": true,
+	"version": "0.1.0",
+	"description": "High-performance, tactical documentation for MYTH CLI. Built for elite security researchers.",
+	"type": "module",
+	"author": "Shesher (MYTH Development Team)",
+	"license": "MIT",
+	"keywords": [
+		"myth",
+		"cli",
+		"recon",
+		"security",
+		"documentation",
+		"tactical"
+	],
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"production": "vite build && vite preview",
+		"lint": "biome check .",
+		"fix": "biome check --write .",
+		"format": "biome format --write .",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@monaco-editor/react": "^4.7.0",
+		"gsap": "^3.14.2",
+		"lodash": "^4.17.23",
+		"react": "^19.2.4",
+		"react-dom": "^19.2.4",
+		"react-is": "^19.2.4",
+		"reactflow": "^11.11.4",
+		"recharts": "^3.8.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.8",
+		"@tailwindcss/vite": "^4.2.1",
+		"@types/node": "^24.12.0",
+		"@types/react": "^19.2.14",
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^6.0.0",
+		"framer-motion": "^12.36.0",
+		"globals": "^17.4.0",
+		"lucide-react": "^0.577.0",
+		"react-router-dom": "^7.13.1",
+		"tailwindcss": "^4.2.1",
+		"typescript": "~5.9.3",
+		"vite": "^8.0.0"
+	}
+}

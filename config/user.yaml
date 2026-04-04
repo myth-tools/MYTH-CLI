@@ -1,0 +1,660 @@
+# ═══════════════════════════════════════════════════════════
+#  MYTH — User Configuration
+#  ─────────────────────────────────────────────────────────
+#  Copy this file to ~/.config/myth/user.yaml and customize.
+#  All settings here override the built-in defaults.
+#  Run `myth config` to verify your active configuration.
+# ═══════════════════════════════════════════════════════════
+
+# ─── Agent Settings ───
+agent:
+  user_name: "Chief"
+  all_report_path: []
+
+# ─── TUI (Terminal Interface) ───
+tui:
+  # PRE-REGISTERED TACTICAL FONTS:
+  # 1. iosevka-nerd-font (Recommended)
+  # 2. jet-brains-mono
+  # 3. hack-nerd-font
+  # 4. fira-code
+  # 5. cascadia-code
+  # 6. meslo-lgs-nf
+  # 7. victor-mono
+  # 8. monaspace-argon
+  # 9. zed-mono
+  # 10. comic-shanns-mono
+  # 
+  # CUSTOM SYSTEM FONTS:
+  # You can also set any custom font installed on your host OS.
+  # Example: "Ubuntu Mono", "Input Mono", "Hack".
+  # ensure you have the font installed manually and its exact name matches.
+  # 
+  # OS SAFETY NOTE: 
+  # Font changes are MISSION-LOCAL and only affect the active terminal session.
+  # MYTH will attempt to automatically revert your terminal font on exit.
+  # Your OS/Desktop fonts will NEVER be affected.
+  font: "none"
+
+  # SIMULATED TYPOGRAPHY MODE:
+  # Set to 'true' for stylized Unicode simulation (Mathematical fonts).
+  # Set to 'false' (Recommended) for 100% font integrity and native rendering.
+  # If 'false', MYTH will perform a "Typography Fidelity Audit" at boot to ensure 
+  # your terminal font matches exactly.
+  simulated_mode: false
+
+# ─── LLM Provider ───
+# Configure your AI provider API keys and model preferences.
+provider:
+  api_keys:
+    # Add your NVIDIA NIM API key(s) below. Get a free key at: https://build.nvidia.com/
+    # Add multiple keys for automatic rotation on rate-limit — recommended for heavy use.
+    # - "nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    # - "nvapi-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+
+  # Verified NVIDIA NIM model slugs (as of 2026-Q1).
+  # Full model catalog: https://build.nvidia.com/explore/reasoning
+  model: "deepseek-ai/deepseek-v3.1-terminus"
+  fallback_model: "deepseek-ai/deepseek-v3.2"
+  base_url: "https://integrate.api.nvidia.com/v1"
+  temperature: 0.4
+  # 128K tokens — the realistic maximum for NIM inference endpoints.
+  max_tokens: 200000
+
+# ─── Recon Profiles ───
+# Define which tools (installed on your OS) are used at each stage.
+# Tools are auto-discovered from your system PATH on startup.
+#
+# Two execution modes:
+#   mode: agent  = LLM decides tools autonomously (default)
+#   mode: user   = You define exactly which tools to use per step per phase
+#
+# In 'user' mode, you can also:
+#   - Enable/disable individual phases
+#   - Run specific phases only
+#   - Choose tools for every single step
+profiles:
+  quick:
+    description: "Fast surface-level scan (15-30 min)"
+    mode: agent
+    tools: ["naabu -top-ports 1000", "httpx -probe -tech-detect", "subfinder", "nuclei -severity critical,high -t ~/nuclei-templates/cves/", "dalfox --pipe", "whatweb", "curl -I", "trufflehog --only-verified", "whois"]
+    max_iterations: 100
+
+  full:
+    description: "Comprehensive reconnaissance (2-5 day engagement)"
+    mode: agent
+    tools: ["amass", "subfinder", "puredns", "naabu", "httpx", "rustscan", "nmap -sCV", "katana", "gau", "waybackurls", "feroxbuster", "ffuf", "nuclei", "testssl.sh", "wafw00f", "trufflehog --entropy", "searchsploit", "dnsrecon", "theHarvester", "whatweb", "dalfox", "interactsh", "whois"]
+    max_iterations: 500
+
+  stealth:
+    description: "Low-noise passive recon — zero active packets"
+    mode: agent
+    tools: ["theHarvester", "whois", "dig", "subfinder -passive", "amass -passive", "gau --passive", "katana -passive", "crt.sh", "shodan", "censys", "hunter.io", "recon-ng", "maltego", "h8mail", "intelx.io", "google-dorks"]
+    max_iterations: 200
+
+  webapp:
+    description: "Web application focused"
+    mode: agent
+    tools: ["feroxbuster", "ffuf", "nuclei", "katana", "httpx", "arjun", "dalfox", "sqlmap", "commix", "linkfinder", "secretfinder", "kiterunner", "graphw00f", "wpscan", "cmseek", "jwt_tool", "corsy", "smuggler", "xsstrike"]
+    max_iterations: 300
+
+  deep:
+    description: "Full pentester engagement — all phases, miss nothing"
+    mode: agent
+    tools: ["amass", "subfinder", "puredns", "dnsx", "naabu", "rustscan", "nmap", "masscan", "httpx", "katana", "gau", "waybackurls", "feroxbuster", "ffuf", "nuclei", "testssl.sh", "wafw00f", "trufflehog", "gitleaks", "searchsploit", "dnsrecon", "theHarvester", "whatweb", "whois", "axiom", "cloudfox", "kube-hunter", "peass-ng", "hydra", "hashcat", "bloodhound-python", "impacket", "crackmapexec", "enum4linux-ng", "rpcinfo", "snmp-check"]
+    max_iterations: 1000
+
+  elite:
+    description: "Elite Recon — 89-step structured workflow with autonomous elite tool selection"
+    mode: agent
+    max_iterations: 2000
+    phases:
+      - name: "Phase 0: Organizational Mapping"
+        enabled: true
+        steps:
+          - name: "Root Domain Enumeration"
+            tools: []
+          - name: "ASN Discovery"
+            tools: []
+          - name: "Acquisition & Subsidiary Research"
+            tools: []
+          - name: "Reverse WHOIS"
+            tools: []
+          - name: "Linked Discovery"
+            tools: []
+          - name: "Seed Target List"
+            tools: []
+      - name: "Phase 1: Identity & Credential Intelligence"
+        enabled: true
+        steps:
+          - name: "Employee & Hierarchy Mapping"
+            tools: []
+          - name: "Email Format Discovery & Validation"
+            tools: []
+          - name: "Historical Credential Leak Analysis"
+            tools: []
+          - name: "Identity-to-Service Mapping"
+            tools: []
+          - name: "Password Policy Inference"
+            tools: []
+      - name: "Phase 2: Asset Discovery & Enumeration"
+        enabled: true
+        steps:
+          - name: "WHOIS Deep Dive"
+            tools: []
+          - name: "DNS Full Enumeration"
+            tools: []
+          - name: "Subdomain Discovery"
+            tools: []
+          - name: "Reverse DNS"
+            tools: []
+          - name: "Certificate Transparency Logs"
+            tools: []
+          - name: "OSINT Gathering"
+            tools: []
+          - name: "Technology Fingerprinting"
+            tools: []
+      - name: "Phase 3: Active Reconnaissance"
+        enabled: true
+        steps:
+          - name: "Port Scanning"
+            tools: []
+          - name: "Service Version Detection"
+            tools: []
+          - name: "Version-to-CVSS Investigation"
+            tools: []
+          - name: "Stack Identification"
+            tools: []
+          - name: "CDN/WAF Fingerprinting"
+            tools: []
+          - name: "Cloud Infrastructure Detection"
+            tools: []
+          - name: "OS Fingerprinting"
+            tools: []
+          - name: "Interesting Endpoint Discovery"
+            tools: []
+      - name: "Phase 4: Content & Application Discovery"
+        enabled: true
+        steps:
+          - name: "Directory & File Bruteforce"
+            tools: []
+          - name: "Exposed Source Code & Git Extraction"
+            tools: []
+          - name: "JavaScript Analysis"
+            tools: []
+          - name: "Virtual Host Discovery"
+            tools: []
+          - name: "CMS Identification & Version Detection"
+            tools: []
+          - name: "API Endpoint Discovery"
+            tools: []
+          - name: "Authentication Mechanism Analysis"
+            tools: []
+          - name: "WebSocket Endpoint Discovery"
+            tools: []
+      - name: "Phase 5: Supply Chain & Dependency Analysis"
+        enabled: true
+        steps:
+          - name: "JavaScript Library Analysis"
+            tools: []
+          - name: "Open Source Dependency Scanning"
+            tools: []
+          - name: "CDN & Third-Party Service Mapping"
+            tools: []
+          - name: "Subresource Integrity (SRI) Checking"
+            tools: []
+      - name: "Phase 6: AI/ML Attack Surface"
+        enabled: true
+        steps:
+          - name: "AI Endpoint Discovery"
+            tools: []
+          - name: "Model File Detection"
+            tools: []
+          - name: "Training Data Exposure"
+            tools: []
+      - name: "Phase 7: Dynamic Input & Interaction Analysis"
+        enabled: true
+        steps:
+          - name: "Hidden Parameter Discovery"
+            tools: []
+          - name: "File Upload Testing"
+            tools: []
+          - name: "Special Character & Injection Testing"
+            tools: []
+          - name: "User Reference Analysis (IDOR Prep)"
+            tools: []
+          - name: "User Role & Privilege Analysis"
+            tools: []
+          - name: "Session Management Deep Dive"
+            tools: []
+      - name: "Phase 8: Vulnerability Assessment"
+        enabled: true
+        steps:
+          - name: "Known CVE Exploitation Check"
+            tools: []
+          - name: "Default/Weak Credential Testing"
+            tools: []
+          - name: "SSL/TLS Analysis"
+            tools: []
+          - name: "Security Header Analysis"
+            tools: []
+          - name: "Misconfiguration Detection"
+            tools: []
+          - name: "Subdomain Takeover Checks"
+            tools: []
+          - name: "IDOR Testing"
+            tools: []
+          - name: "CORS Misconfiguration Testing"
+            tools: []
+          - name: "XSS Detection"
+            tools: []
+          - name: "Open Redirect Detection"
+            tools: []
+          - name: "SSRF Entry Point Identification"
+            tools: []
+          - name: "Race Condition Checks"
+            tools: []
+          - name: "Template Injection (SSTI)"
+            tools: []
+      - name: "Phase 9: Secrets & Exposure Analysis"
+        enabled: true
+        steps:
+          - name: "Git & Source Code Leak Mining"
+            tools: []
+          - name: "Cloud Storage Exposure"
+            tools: []
+          - name: "Document Metadata Extraction"
+            tools: []
+          - name: "Paste Site & Dark Web Monitoring"
+            tools: []
+          - name: "GitHub Organization Monitoring"
+            tools: []
+      - name: "Phase 10: Social Engineering & OSINT Exposure"
+        enabled: true
+        steps:
+          - name: "Public Document & Metadata Mining"
+            tools: []
+          - name: "Social Media & Tech Talk Analysis"
+            tools: []
+          - name: "Helpdesk & Support Channel Discovery"
+            tools: []
+          - name: "Executive OSINT Profile"
+            tools: []
+      - name: "Phase 11: Continuous Monitoring & Delta Discovery"
+        enabled: true
+        steps:
+          - name: "DNS Change Detection"
+            tools: []
+          - name: "Port & Service Change Alerts"
+            tools: []
+          - name: "SSL Certificate Monitoring"
+            tools: []
+          - name: "Content Hashing (File Change Detection)"
+            tools: []
+          - name: "GitHub Org & New Repo Monitoring"
+            tools: []
+      - name: "Phase 12: Attack Surface Synthesis & Reporting"
+        enabled: true
+        steps:
+          - name: "Critical Asset Identification"
+            tools: []
+          - name: "Attack Path Visualization"
+            tools: []
+          - name: "Findings Summary with Severity"
+            tools: []
+          - name: "OWASP/CWE Mapping"
+            tools: []
+          - name: "Remediation Recommendations"
+            tools: []
+          - name: "Complete Asset Inventory"
+            tools: []
+          - name: "Attack Surface Map"
+            tools: []
+          - name: "Methodology & Tools Documentation"
+            tools: []
+
+
+  custom:
+    description: "User-controlled — you choose every tool for every step of every phase"
+    mode: user
+    strict_custom_commands: false
+    max_iterations: 2000
+    phases:
+      - name: "Phase 0: Organizational Mapping"
+        enabled: true
+        steps:
+          - name: "Root Domain Enumeration"
+            tools: ["amass", "subfinder"]
+            commands: 
+              - "amass intel -whois -d target.com"
+              - "subfinder -d target.com -o subfinder_roots.txt"
+          - name: "ASN Discovery"
+            tools: ["metabigor", "whois"]
+            commands:
+              - "metabigor net --org 'Target Corporation' -o asn_results.txt"
+              - "whois -h whois.radb.net -- '-i mnt-by MAINT-AS12345'"
+          - name: "Acquisition & Subsidiary Research"
+            tools: ["theHarvester"]
+            commands:
+              - "theHarvester -d target.com -b google,duckduckgo -l 500"
+          - name: "Reverse WHOIS"
+            tools: ["whois"]
+            commands:
+              - "whois -h whois.iana.org target.com"
+          - name: "Linked Discovery"
+            tools: ["spiderfoot"]
+            commands:
+              - "spiderfoot -s target.com -m sfp_whois,sfp_dns,sfp_shodan"
+          - name: "Seed Target List"
+            tools: []
+            commands: ["cat subfinder_roots.txt asn_results.txt | sort -u > seed_targets.txt"]
+
+      - name: "Phase 1: Identity & Credential Intelligence"
+        enabled: true
+        steps:
+          - name: "Employee & Hierarchy Mapping"
+            tools: ["theHarvester", "sherlock"]
+            commands:
+              - "theHarvester -d target.com -b linkedin"
+              - "sherlock target_admin_username"
+          - name: "Email Format Discovery & Validation"
+            tools: ["hunter.io", "theHarvester"]
+            commands:
+              - "theHarvester -d target.com -b hunter"
+          - name: "Historical Credential Leak Analysis"
+            tools: ["trufflehog", "h8mail"]
+            commands:
+              - "h8mail -t admin@target.com -q breachcomp"
+          - name: "Identity-to-Service Mapping"
+            tools: ["spiderfoot"]
+            commands:
+              - "spiderfoot -s target.com -m sfp_account"
+          - name: "Password Policy Inference"
+            tools: ["cewl", "cupp"]
+            commands:
+              - "cewl -d 2 -m 5 https://target.com -w target_wordlist.txt"
+
+      - name: "Phase 2: Asset Discovery & Enumeration"
+        enabled: true
+        steps:
+          - name: "WHOIS Deep Dive"
+            tools: ["whois"]
+            commands: ["whois target.com"]
+          - name: "DNS Full Enumeration"
+            tools: ["dnsx", "dnsrecon", "dig"]
+            commands:
+              - "dnsx -d target.com -resp-all -oa dns_results.txt"
+              - "dnsrecon -d target.com -t std"
+          - name: "Subdomain Discovery"
+            tools: ["subfinder", "puredns", "amass"]
+            commands:
+              - "subfinder -d target.com -silent"
+              - "puredns bruteforce /usr/share/wordlists/dirb/common.txt target.com"
+          - name: "Reverse DNS"
+            tools: ["dnsx"]
+            commands: ["dnsx -ptr -l ip_list.txt"]
+          - name: "Certificate Transparency Logs"
+            tools: ["crt.sh", "certspotter"]
+            commands: []
+          - name: "OSINT Gathering"
+            tools: ["shodan", "censys"]
+            commands:
+              - "shodan search 'hostname:target.com'"
+              - "censys search 'target.com'"
+          - name: "Technology Fingerprinting"
+            tools: ["httpx", "whatweb"]
+            commands:
+              - "httpx -l subdomains.txt -td -title -status-code"
+              - "whatweb -i subdomains.txt --aggression 3"
+
+      - name: "Phase 3: Active Reconnaissance"
+        enabled: true
+        steps:
+          - name: "Port Scanning"
+            tools: ["naabu", "nmap"]
+            commands:
+              - "naabu -l subdomains.txt -top-ports 1000 -stats"
+              - "nmap -iL live_hosts.txt -p 80,443,22,21,8080"
+          - name: "Service Version Detection"
+            tools: ["nmap -sV"]
+            commands: ["nmap -sV -sC -iL live_hosts.txt"]
+          - name: "Version-to-CVSS Investigation"
+            tools: ["searchsploit"]
+            commands: ["searchsploit --nmap service_scan.xml"]
+          - name: "Stack Identification"
+            tools: ["httpx", "whatweb"]
+            commands: ["httpx -l active_urls.txt -server -x-powered-by"]
+          - name: "CDN/WAF Fingerprinting"
+            tools: ["wafw00f"]
+            commands: ["wafw00f -i active_urls.txt"]
+          - name: "Cloud Infrastructure Detection"
+            tools: ["cloudfox", "cloud_enum"]
+            commands:
+              - "cloud_enum -k target"
+              - "cloudfox aws --profile target-aws inventory"
+          - name: "OS Fingerprinting"
+            tools: ["nmap -O"]
+            commands: ["nmap -O -iL live_hosts.txt"]
+          - name: "Interesting Endpoint Discovery"
+            tools: ["katana", "gau", "waybackurls"]
+            commands:
+              - "katana -list urls.txt -d 5 -jc -kf all"
+              - "gau target.com --subs"
+
+      - name: "Phase 4: Content & Application Discovery"
+        enabled: true
+        steps:
+          - name: "Directory & File Bruteforce"
+            tools: ["feroxbuster", "ffuf"]
+            commands:
+              - "feroxbuster -u https://target.com -w /usr/share/wordlists/dirb/common.txt -x php,html,js -t 50"
+              - "ffuf -u https://target.com/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,301,302"
+          - name: "Exposed Source Code & Git Extraction"
+            tools: ["git-dumper", "trufflehog"]
+            commands:
+              - "git-dumper https://target.com/.git/ output_dir"
+              - "trufflehog git file://$(pwd)/output_dir"
+          - name: "JavaScript Analysis"
+            tools: ["linkfinder", "secretfinder"]
+            commands:
+              - "linkfinder -i https://target.com/main.js -o cli"
+              - "secretfinder -i https://target.com/bundle.js -o cli"
+          - name: "Virtual Host Discovery"
+            tools: ["ffuf"]
+            commands: ["ffuf -u https://target.com -H 'Host: FUZZ.target.com' -w /usr/share/seclists/Discovery/DNS/subdomains-top1mil-5000.txt"]
+          - name: "CMS Identification & Version Detection"
+            tools: ["cmseek", "wpscan"]
+            commands:
+              - "cmseek -u https://target.com"
+              - "wpscan --url https://target.com --enumerate vp,vt,tt"
+          - name: "API Endpoint Discovery"
+            tools: ["kiterunner", "arjun"]
+            commands:
+              - "kr scan https://api.target.com/v1 -w routes-large.json"
+              - "arjun -u https://api.target.com/v1/user -m GET,POST"
+          - name: "Authentication Mechanism Analysis"
+            tools: ["jwt_tool"]
+            commands: ["jwt_tool $JWT_TOKEN -T -X all"]
+          - name: "WebSocket Endpoint Discovery"
+            tools: ["wsrecon"]
+            commands: ["wsrecon https://target.com"]
+
+      - name: "Phase 5: Supply Chain & Dependency Analysis"
+        enabled: true
+        steps:
+          - name: "JavaScript Library Analysis"
+            tools: ["retire.js", "npm-audit-parser"]
+            commands: ["retire --path src/"]
+          - name: "Open Source Dependency Scanning"
+            tools: ["osv-scanner", "grype"]
+            commands:
+              - "osv-scanner -r ."
+              - "grype dir:."
+          - name: "CDN & Third-Party Service Mapping"
+            tools: ["wappalyzer"]
+            commands: ["wappalyzer https://target.com"]
+          - name: "Subresource Integrity (SRI) Checking"
+            tools: ["sri-checker"]
+            commands: ["sri-checker https://target.com"]
+
+      - name: "Phase 6: AI/ML Attack Surface"
+        enabled: true
+        steps:
+          - name: "AI Endpoint Discovery"
+            tools: ["llm-fuzzer", "promptmap"]
+            commands: ["promptmap -u https://ai.target.com/chat"]
+          - name: "Model File Detection"
+            tools: ["nuclei"]
+            commands: ["nuclei -t vulnerabilities/ai-model-exposure.yaml -u https://target.com"]
+          - name: "Training Data Exposure"
+            tools: ["cloudsploit"]
+            commands: ["cloudsploit --plugin s3PublicWrite"]
+
+      - name: "Phase 7: Dynamic Input & Interaction Analysis"
+        enabled: true
+        steps:
+          - name: "Hidden Parameter Discovery"
+            tools: ["arjun", "paramspider"]
+            commands: ["paramspider -d target.com"]
+          - name: "File Upload Testing"
+            tools: ["fuxploider"]
+            commands: ["fuxploider -u https://target.com/upload -t php"]
+          - name: "Special Character & Injection Testing"
+            tools: ["sqlmap", "commix"]
+            commands:
+              - "sqlmap -u 'https://target.com/api?id=1' --batch --random-agent --level 3"
+              - "commix --url='https://target.com/cmd.php?addr=INJECT_HERE' --batch"
+          - name: "User Reference Analysis (IDOR Prep)"
+            tools: ["autorize"]
+            commands: ["autorize --url https://target.com"]
+          - name: "User Role & Privilege Analysis"
+            tools: ["autorize", "peass-ng"]
+            commands: ["peass-ng linpeas -o"]
+          - name: "Session Management Deep Dive"
+            tools: ["jwt_tool"]
+            commands: ["jwt_tool $COOKIE_JWT -C -d all"]
+
+      - name: "Phase 8: Vulnerability Assessment"
+        enabled: true
+        steps:
+          - name: "Known CVE Exploitation Check"
+            tools: ["nuclei", "searchsploit", "nmap"]
+            commands: ["nuclei -l subdomains.txt -t cves/ -severity critical,high"]
+          - name: "Default/Weak Credential Testing"
+            tools: ["hydra", "changeme"]
+            commands: ["hydra -L /usr/share/wordlists/metasploit/unix_users.txt -P /usr/share/wordlists/metasploit/unix_passwords.txt ssh://target.com"]
+          - name: "SSL/TLS Analysis"
+            tools: ["testssl.sh"]
+            commands: ["testssl.sh target.com"]
+          - name: "Security Header Analysis"
+            tools: ["httpx"]
+            commands: ["httpx -l active_urls.txt -sc -title -td -server"]
+          - name: "Misconfiguration Detection"
+            tools: ["nuclei", "interactsh"]
+            commands: ["nuclei -t vulnerabilities/misconfiguration/ -u https://target.com"]
+          - name: "Subdomain Takeover Checks"
+            tools: ["subjack", "nuclei"]
+            commands: ["subjack -w domains.txt -t 100 -timeout 30 -o takeovers.txt"]
+          - name: "IDOR Testing"
+            tools: ["ffuf"]
+            commands: ["ffuf -u https://target.com/api/user/FUZZ -w /usr/share/wordlists/metasploit/http_default_users.txt -mc 200"]
+          - name: "CORS Misconfiguration Testing"
+            tools: ["corsy"]
+            commands: ["python3 corsy.py -u https://target.com"]
+          - name: "XSS Detection"
+            tools: ["dalfox"]
+            commands: ["dalfox url https://target.com/search?q=MYTH"]
+          - name: "Open Redirect Detection"
+            tools: ["oralyzer"]
+            commands: ["python3 oralyzer.py -u https://target.com/redirect?url=google.com"]
+          - name: "SSRF Entry Point Identification"
+            tools: ["ssrfmap", "interactsh"]
+            commands: ["python3 ssrfmap.py -u https://target.com/proxy?url=http://169.254.169.254"]
+          - name: "Race Condition Checks"
+            tools: ["race-the-web"]
+            commands: ["race-the-web config.yaml"]
+          - name: "Template Injection (SSTI)"
+            tools: ["sstimap"]
+            commands: ["python3 sstimap.py -u https://target.com/template?name=MYTH"]
+
+      - name: "Phase 9: Secrets & Exposure Analysis"
+        enabled: true
+        steps:
+          - name: "Git & Source Code Leak Mining"
+            tools: ["trufflehog", "gitleaks"]
+            commands: ["gitleaks detect --source . -v"]
+          - name: "Cloud Storage Exposure"
+            tools: ["s3scanner", "cloud_enum"]
+            commands: ["s3scanner scan --bucket target-assets"]
+          - name: "Document Metadata Extraction"
+            tools: ["exiftool", "metagoofil"]
+            commands: ["metagoofil -d target.com -t pdf,doc,xls -n 50 -o documents/"]
+          - name: "Paste Site & Dark Web Monitoring"
+            tools: ["dehashed"]
+            commands: ["dehashed -q 'target.com'"]
+          - name: "GitHub Organization Monitoring"
+            tools: ["gitdorker"]
+            commands: ["python3 GitDorker.py -t <TOKEN> -org target_org"]
+
+      - name: "Phase 10: Social Engineering & OSINT Exposure"
+        enabled: true
+        steps:
+          - name: "Public Document & Metadata Mining"
+            tools: ["foca", "metagoofil"]
+            commands: ["foca --url https://target.com"]
+          - name: "Social Media & Tech Talk Analysis"
+            tools: ["sherlock", "social-analyzer"]
+            commands: ["sherlock target_employee_name"]
+          - name: "Helpdesk & Support Channel Discovery"
+            tools: []
+            commands: ["google-dorking 'site:target.com inurl:support'"]
+          - name: "Executive OSINT Profile"
+            tools: ["theHarvester", "maltego"]
+            commands: ["theHarvester -d target.com -b pgp,twitter"]
+
+      - name: "Phase 11: Continuous Monitoring & Delta Discovery"
+        enabled: true
+        steps:
+          - name: "DNS Change Detection"
+            tools: ["subfinder", "dnsx"]
+            commands: ["subfinder -d target.com -silent | dnsx -silent -oa dns_delta.txt"]
+          - name: "Port & Service Change Alerts"
+            tools: ["naabu"]
+            commands: ["naabu -host target.com -p - -silent -o port_delta.txt"]
+          - name: "SSL Certificate Monitoring"
+            tools: ["certstream"]
+            commands: ["certstream --json | grep 'target.com'"]
+          - name: "Content Hashing (File Change Detection)"
+            tools: ["httpx"]
+            commands: ["httpx -u https://target.com -hash sha256"]
+          - name: "GitHub Org & New Repo Monitoring"
+            tools: ["gitdorker"]
+            commands: ["python3 GitDorker.py -org target_org -p 1"]
+
+      - name: "Phase 12: Attack Surface Synthesis & Reporting"
+        enabled: true
+        steps:
+          - name: "Critical Asset Identification"
+            tools: []
+            commands: ["analyze-criticality findings.json"]
+          - name: "Attack Path Visualization"
+            tools: ["bloodhound-python"]
+            commands: ["bloodhound-python -u admin -p pass -d target.local -c All"]
+          - name: "Findings Summary with Severity"
+            tools: []
+            commands: ["generate-summary findings.json"]
+          - name: "OWASP/CWE Mapping"
+            tools: []
+            commands: ["map-vulnerabilities owasp"]
+          - name: "Remediation Recommendations"
+            tools: []
+            commands: ["generate-remediation findings.json"]
+          - name: "Complete Asset Inventory"
+            tools: ["amass"]
+            commands: ["amass db -list -d target.com"]
+          - name: "Attack Surface Map"
+            tools: ["bloodhound-python"]
+            commands: ["bloodhound-python --dns-server 1.1.1.1"]
+          - name: "Methodology & Tools Documentation"
+            tools: []
+            commands: ["generate-report --full"]

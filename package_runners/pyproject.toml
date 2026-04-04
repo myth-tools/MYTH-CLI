@@ -1,0 +1,51 @@
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "myth-cli"
+version = "0.1.0"
+description = "An ultra-fast AI-powered reconnaissance agent for Kali Linux"
+readme = "../README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "myth-tools", email = "shesher0llms@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Security"
+]
+keywords = ["kali", "reconnaissance", "ai", "security", "pentesting", "bug-bounty"]
+
+[project.urls]
+Homepage = "https://myth.work.gd"
+Repository = "https://github.com/myth-tools/MYTH-CLI"
+Documentation = "https://myth.work.gd/"
+
+[tool.maturin]
+manifest-path = "../Cargo.toml"
+# Enforce pure Rust binary generation (no Python C-extension bindings)
+bindings = "bin"
+strip = true
+
+[tool.cibuildwheel]
+# Strict architectural constraints for PyPI Automated Builders
+# MYTH exclusively operates on Linux sandboxing architectures.
+# Build for CPython 3.10-3.13 on manylinux (x86_64 + aarch64)
+build = "cp310-manylinux* cp311-manylinux* cp312-manylinux* cp313-manylinux*"
+skip = "*-win32 *-win_amd64 *-macosx* *-musllinux*"
+[tool.myth.creator]
+name = "Shesher Hasan"
+role = "Chief Architect"
+contact = "shesher0llms@gmail.com"
+organization = "myth-tools"
+clearance_level = "OPERATIVE-LEVEL-4 (SENIOR ARCHITECT)"
+system_license = "MYTH-INSTITUTIONAL-COMMERCIAL-2026-BETA"

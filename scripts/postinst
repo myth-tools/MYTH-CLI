@@ -1,0 +1,201 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Maintainer Script (postinst)
+#  Supports: Debian/Kali/Ubuntu, Fedora/RHEL, Arch,
+#            and Termux (Android)
+# ═══════════════════════════════════════════════════
+set -e
+
+# ─── Universal Temp Dir ───
+TMP_DIR="${TMPDIR:-/tmp}"
+
+# ─── Tactical UI Standard ───
+# shellcheck disable=SC2034
+myth_log() {
+    # Only use colors if stdout is a TTY
+    if [ -t 1 ]; then
+        CYAN='\033[0;36m'
+        GREEN='\033[0;32m'
+        NC='\033[0m'
+        printf "${CYAN}[MYTH]${NC} %s\n" "$1"
+    else
+        printf "[MYTH] %s\n" "$1"
+    fi
+}
+
+# ─── Tactical Concurrency Lock ───
+LOCK_FILE="${TMP_DIR}/.myth_install.lock"
+if [ -f "$LOCK_FILE" ]; then
+    # Portable stale lock detection (5 minutes = 300 seconds)
+    CUR_TIME=$(date +%s)
+    FILE_TIME=$(stat -c%Y "$LOCK_FILE" 2>/dev/null || stat -f%m "$LOCK_FILE" 2>/dev/null || echo 0)
+    DIFF=$((CUR_TIME - FILE_TIME))
+    if [ "$DIFF" -gt 300 ]; then
+        rm -f "$LOCK_FILE"
+    else
+        myth_log "Warning: Tactical deployment already in progress (held for ${DIFF}s). Waiting..."
+        exit 0
+    fi
+fi
+touch "$LOCK_FILE"
+trap 'rm -f "$LOCK_FILE"' EXIT
+
+# ─── OS Detection ───
+DISTRO_FAMILY="debian"
+IS_TERMUX=false
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    DISTRO_FAMILY="termux"
+    IS_TERMUX=true
+elif [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}" in
+        fedora|rhel|centos|rocky|alma|ol|amzn) DISTRO_FAMILY="fedora" ;;
+        arch|manjaro|endeavouros|garuda|artix)   DISTRO_FAMILY="arch" ;;
+        *) DISTRO_FAMILY="debian" ;;
+    esac
+fi
+
+# ─── Tactical Environment Audit ───
+# shellcheck disable=SC2034
+if [ "$IS_TERMUX" = true ]; then
+    ROOT_DIR="$PREFIX"
+    BIN_DIR="$PREFIX/bin"
+else
+    ROOT_DIR=""
+    # Primary: /usr/local/bin (Prestige Path) -> Fallback: /usr/bin
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        BIN_DIR="/usr/local/bin"
+    else
+        BIN_DIR="/usr/bin"
+    fi
+fi
+
+# shellcheck disable=SC2034
+CONF_DIR="${ROOT_DIR}/etc/myth"
+# shellcheck disable=SC2034
+LOG_DIR="${ROOT_DIR}/var/log/myth"
+# shellcheck disable=SC2034
+LIB_DIR="${ROOT_DIR}/var/lib/myth"
+
+# ─── Downloader Resolution ───
+if command -v curl > /dev/null 2>&1; then
+    DOWNLOADER="curl"
+elif command -v wget > /dev/null 2>&1; then
+    DOWNLOADER="wget"
+else
+    DOWNLOADER="none"
+fi
+
+case "$1" in
+    # Debian: configure | RPM: 1 (install), 2 (upgrade)
+    configure|1|2)
+        # 1. Initialize System Configuration
+        if [ ! -f "$CONF_DIR/user.yaml" ]; then
+            myth_log "Provisioning tactical configuration in $CONF_DIR..."
+            mkdir -p "$CONF_DIR"
+        fi
+
+        # 2. Permissions & Security Audit
+        myth_log "Applying industrial-grade security constraints..."
+        chmod 755 "$BIN_DIR/myth"
+
+        # Unified Symlink Provisioning ('agent' alias)
+        if [ ! -e "$BIN_DIR/agent" ]; then
+            ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent"
+        elif [ -L "$BIN_DIR/agent" ] && [ "$(readlink "$BIN_DIR/agent")" = "$BIN_DIR/myth" ]; then
+            ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent"
+        else
+            myth_log "Warning: Skipping $BIN_DIR/agent symlink; path occupied by foreign entity."
+        fi
+
+        if [ -f "$CONF_DIR/user.yaml" ]; then
+            chmod 644 "$CONF_DIR/user.yaml"
+        fi
+
+        # 3. Font Utilities Provisioning (Cross-OS)
+        if ! command -v fc-list > /dev/null 2>&1; then
+            myth_log "Provisioning font configuration utilities..."
+            case "$DISTRO_FAMILY" in
+                debian)
+                    apt-get update -qq 2>/dev/null || myth_log "Warning: apt-get update failed (non-critical)."
+                    apt-get install -y -qq fontconfig 2>/dev/null \
+                        || echo "Warning: Font utilities provisioning failed (non-critical)."
+                    ;;
+                fedora)
+                    PKG_CMD="dnf"
+                    command -v dnf > /dev/null 2>&1 || PKG_CMD="yum"
+                    $PKG_CMD install -y fontconfig 2>/dev/null \
+                        || echo "Warning: Font utilities provisioning failed (non-critical)."
+                    ;;
+                arch)
+                    pacman -Sy --noconfirm fontconfig 2>/dev/null \
+                        || echo "Warning: Font utilities provisioning failed (non-critical)."
+                    ;;
+                termux)
+                    pkg install -y fontconfig 2>/dev/null \
+                        || echo "Warning: Font utilities provisioning failed (non-critical)."
+                    ;;
+            esac
+        fi
+
+        # 4. Browser Engine Provisioning (Lightpanda) — Non-blocking
+        if ! command -v lightpanda > /dev/null 2>&1 && [ ! -f "$BIN_DIR/lightpanda" ]; then
+            myth_log "Provisioning Lightpanda browser engine for MYTH..."
+            ARCH=$(uname -m)
+            case "$ARCH" in
+                x86_64)  BINARY="lightpanda-x86_64-linux" ;;
+                aarch64) BINARY="lightpanda-aarch64-linux" ;;
+                *)
+                    myth_log "Warning: Unsupported architecture for Lightpanda: $ARCH. Skipping."
+                    BINARY=""
+                    ;;
+            esac
+
+            if [ -n "$BINARY" ] && [ "$DOWNLOADER" != "none" ]; then
+                URL="https://github.com/lightpanda-io/browser/releases/download/nightly/${BINARY}"
+                TEMP_FILE="${TMP_DIR}/lightpanda_deb_$$.tmp"
+
+                DL_OK=false
+                if [ "$DOWNLOADER" = "curl" ]; then
+                    curl -fsSL --max-time 120 --connect-timeout 15 "$URL" -o "$TEMP_FILE" 2>/dev/null && DL_OK=true || true
+                else
+                    wget -q --timeout=120 --tries=2 "$URL" -O "$TEMP_FILE" 2>/dev/null && DL_OK=true || true
+                fi
+
+                if [ "$DL_OK" = true ]; then
+                    # Validate: must be > 10KB to be a real binary
+                    FILE_SIZE=0
+                    if command -v stat > /dev/null 2>&1; then
+                        FILE_SIZE=$(stat -c%s "$TEMP_FILE" 2>/dev/null || stat -f%z "$TEMP_FILE" 2>/dev/null || echo 0)
+                    fi
+                    if [ "$FILE_SIZE" -gt 10240 ]; then
+                        chmod +x "$TEMP_FILE"
+                        mv "$TEMP_FILE" "$BIN_DIR/lightpanda"
+                        myth_log "Lightpanda engine provisioned at $BIN_DIR/lightpanda"
+                    else
+                        myth_log "Warning: Lightpanda download appears invalid (${FILE_SIZE} bytes). Skipping."
+                        rm -f "$TEMP_FILE"
+                    fi
+                else
+                    myth_log "Warning: Lightpanda engine download failed. Run 'myth check' later."
+                    rm -f "$TEMP_FILE" 2>/dev/null || true
+                fi
+            fi
+        fi
+
+        myth_log "MYTH Tactical Deployment (v${VERSION:-unknown}) Complete."
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

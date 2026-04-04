@@ -1,0 +1,22 @@
+Package: myth
+Priority: optional
+Section: utils
+Installed-Size: 27134
+Maintainer: myth-tools <shesher0llms@gmail.com>
+Architecture: arm64
+Version: 0.1.0-1
+Depends: bubblewrap (>= 0.6), ca-certificates, libc6 (>= 2.31), libssl3 | libssl1.1, zstd
+Filename: pool/main/m/myth/myth_0.1.0-1_arm64.deb
+Size: 8539792
+MD5sum: 29caccf82b2c9f61f82fd1a57f39a272
+SHA1: 7d4589670e27f21470e6441463d150ff3a97098d
+SHA256: a18ceae635f90e06adf67bae7c52e357b00f508d3afd379acd555ce7b8321d2b
+SHA512: 271063245098e1b9088f4fbb5506585be83ac656822ef86ac23a60de403e4b381610e596ffff07ec6b372b0f70e4a2ab0a99ecee128b3c4e85a82d39cf8f8537
+Description: MYTH — Ultra-fast AI-powered autonomous reconnaissance agent for Kali Linux &
+ Debian
+ MYTH is an ultra-powerful, tactical AI reconnaissance agent designed for 
+ high-fidelity asset discovery and attack surface mapping. 
+ It features a unified neural link system with persistent session memory, 
+ sandboxed execution via Bubblewrap, and advanced MCP tool discovery.
+Homepage: https://myth.work.gd
+

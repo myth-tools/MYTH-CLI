@@ -1,0 +1,40 @@
+[
+  {
+    "os": "debian",
+    "platform": "Debian / Kali / Ubuntu",
+    "version": "0.1.0-1",
+    "arch": "amd64",
+    "display_arch": "x64 (64-bit)",
+    "size": 9644804,
+    "size_human": "9.19 MB",
+    "date": 1775286340,
+    "date_human": "2026-04-04",
+    "description": "MYTH — Ultra-fast AI-powered autonomous reconnaissance agent for Kali Linux &",
+    "maintainer": "myth-tools <shesher0llms@gmail.com>",
+    "section": "utils",
+    "filename": "myth_0.1.0-1_amd64.deb",
+    "path": "pool/main/m/myth/myth_0.1.0-1_amd64.deb",
+    "sha256": "527bb90d67fbf2dd3a03b037610ad367b9e6f48cdb3255f1c8b0626464b46dd5",
+    "verify_cmd": "echo \"527bb90d67fbf2dd3a03b037610ad367b9e6f48cdb3255f1c8b0626464b46dd5  myth_0.1.0-1_amd64.deb\" | sha256sum -c",
+    "install_cmd": "sudo apt install ./myth_0.1.0-1_amd64.deb"
+  },
+  {
+    "os": "debian",
+    "platform": "Termux / Kali NetHunter",
+    "version": "0.1.0-1",
+    "arch": "arm64",
+    "display_arch": "ARM64 (v8)",
+    "size": 8539792,
+    "size_human": "8.14 MB",
+    "date": 1775286687,
+    "date_human": "2026-04-04",
+    "description": "MYTH — Ultra-fast AI-powered autonomous reconnaissance agent for Kali Linux &",
+    "maintainer": "myth-tools <shesher0llms@gmail.com>",
+    "section": "utils",
+    "filename": "myth_0.1.0-1_arm64.deb",
+    "path": "pool/main/m/myth/myth_0.1.0-1_arm64.deb",
+    "sha256": "a18ceae635f90e06adf67bae7c52e357b00f508d3afd379acd555ce7b8321d2b",
+    "verify_cmd": "echo \"a18ceae635f90e06adf67bae7c52e357b00f508d3afd379acd555ce7b8321d2b  myth_0.1.0-1_arm64.deb\" | sha256sum -c",
+    "install_cmd": "pkg install ./myth_0.1.0-1_arm64.deb"
+  }
+]

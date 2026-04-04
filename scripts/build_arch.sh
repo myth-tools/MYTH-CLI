@@ -413,7 +413,7 @@ PKGINFO
     PKG_FILE="$ARCH_OUTPUT/${PKG_NAME}.pkg.tar.zst"
 
     info "Compressing package..."
-    (cd "$PKG_STAGING" && find . -maxdepth 1 -not -name '.' | sort | tar --no-recursion -cf - -T - | zstd -f -19 -T0 -o "$PKG_FILE")
+    (cd "$PKG_STAGING" && find . -maxdepth 1 -not -name '.' | sort | tar -cf - -T - | zstd -f -19 -T0 -o "$PKG_FILE")
 
     rm -rf "$PKG_STAGING"
 

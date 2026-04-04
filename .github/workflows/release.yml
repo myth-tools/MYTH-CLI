@@ -1,9 +1,6 @@
 name: Release & Publish Mission Assets
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       dry_run:

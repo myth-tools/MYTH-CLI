@@ -16,6 +16,7 @@ BOLD='\033[1m'
 RESET='\033[0m'
 
 warn() { echo -e "${YELLOW}⚠  [WARN]  $1${RESET}"; }
+err()  { echo -e "${RED}✘  [FATAL] $1${RESET}"; exit 1; }
 GLOBAL_FAIL=0
 
 DRY_RUN=false
@@ -114,38 +115,126 @@ check_auth() {
     
     case $vector in
         NPM)
-            if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then echo -e "${YELLOW}⚠ NODE_AUTH_TOKEN missing.${RESET}"; fi
+            if [[ -z "${NODE_AUTH_TOKEN:-}" ]]; then 
+                echo -e "${RED}✘ [ERROR] NODE_AUTH_TOKEN missing from environment.${RESET}"
+                return 1
+            fi
             ;;
         PyPI)
-            if [[ -z "${UV_PUBLISH_TOKEN:-}" ]]; then echo -e "${YELLOW}⚠ UV_PUBLISH_TOKEN missing.${RESET}"; fi
+            if [[ -z "${UV_PUBLISH_TOKEN:-}" ]]; then 
+                echo -e "${RED}✘ [ERROR] UV_PUBLISH_TOKEN missing from environment.${RESET}"
+                return 1
+            fi
             ;;
         OCI)
-            # Check config.json for an existing GHCR credential
+            # Check for existing docker credentials
             if ! grep -q "ghcr.io" "${HOME}/.docker/config.json" 2>/dev/null; then
-                echo -e "${YELLOW}⚠ Not logged into ghcr.io. Registry access may fail.${RESET}"
-                echo -e "   Run: 'docker login ghcr.io' with a GitHub PAT."
-            else
-                # Proactive connectivity check
-                if ! docker pull ghcr.io/myth-tools/myth:latest --dry-run &>/dev/null && \
-                   ! docker pull ghcr.io/myth-tools/myth:latest --quiet &>/dev/null; then
-                    warn "GHCR probe failed. Publication may require elevated permissions or a fresh login."
+                # Try Neural Auto-Login via environment variables
+                if [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_USERNAME:-}" ]]; then
+                    echo -e "${CYAN}⚡ [NEURAL] Attempting Auto-Login to ghcr.io (User: ${GITHUB_USERNAME})...${RESET}"
+                    if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin &>/dev/null; then
+                        echo -e "${GREEN}✔ [OK] Docker authorized for ghcr.io.${RESET}"
+                    else
+                        echo -e "${RED}✘ [ERROR] Neural Docker login failed.${RESET}"; return 1
+                    fi
+                elif [[ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" && -n "${GITHUB_USERNAME:-}" ]]; then
+                    echo -e "${CYAN}⚡ [NEURAL] Attempting Auto-Login to ghcr.io via PAT...${RESET}"
+                    if echo "$GITHUB_PERSONAL_ACCESS_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin &>/dev/null; then
+                        echo -e "${GREEN}✔ [OK] Docker authorized for ghcr.io.${RESET}"
+                    else
+                        echo -e "${RED}✘ [ERROR] Neural Docker login via PAT failed.${RESET}"; return 1
+                    fi
                 else
-                    echo -e "${GREEN}✔ [OK] GHCR access verified.${RESET}"
+                    echo -e "${RED}✘ [ERROR] Not logged into ghcr.io and no GITHUB_TOKEN/USERNAME found.${RESET}"
+                    echo -e "   Run: 'docker login ghcr.io' or export GITHUB_TOKEN/USERNAME."
+                    return 1
+                fi
+            fi
+            
+            # Neural Validation Probe (v2: Metadata Only)
+            if docker manifest inspect ghcr.io/myth-tools/myth:latest >/dev/null 2>&1; then
+                echo -e "${GREEN}✔ [OK] OCI connection verified.${RESET}"
+            else
+                probe_error=$(docker manifest inspect ghcr.io/myth-tools/myth:latest 2>&1) || true
+                if [[ "$probe_error" =~ "unauthorized" || "$probe_error" =~ "denied" || "$probe_error" =~ "Must be authenticated" ]]; then
+                    echo -e "${YELLOW}⚠ OCI session expired or unauthorized. Retracing...${RESET}"
+                    # Attempt Neural Auto-Login via environment variables
+                    if [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_USERNAME:-}" ]]; then
+                        echo -e "${CYAN}⚡ [NEURAL] Refreshing OCI authorization (User: ${GITHUB_USERNAME})...${RESET}"
+                        if echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin &>/dev/null; then
+                            echo -e "${GREEN}✔ [OK] OCI authorization refreshed.${RESET}"
+                        else
+                            echo -e "${RED}✘ [ERROR] Neural OCI refresh failed.${RESET}"; return 1
+                        fi
+                    elif [[ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" && -n "${GITHUB_USERNAME:-}" ]]; then
+                        echo -e "${CYAN}⚡ [NEURAL] Refreshing OCI authorization via PAT...${RESET}"
+                        if echo "$GITHUB_PERSONAL_ACCESS_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin &>/dev/null; then
+                            echo -e "${GREEN}✔ [OK] OCI authorization refreshed.${RESET}"
+                        else
+                            echo -e "${RED}✘ [ERROR] Neural OCI refresh failed.${RESET}"; return 1
+                        fi
+                    else
+                        echo -e "${RED}✘ [ERROR] OCI session invalid and no credentials found.${RESET}"; return 1
+                    fi
+                elif [[ "$probe_error" =~ "manifest unknown" || "$probe_error" =~ "not found" || "$probe_error" =~ "No such image" || -z "$probe_error" ]]; then
+                    echo -e "${GREEN}✔ [OK] OCI connection verified.${RESET}"
+                else
+                    # Other registry errors (network, timeouts)
+                    clean_err=$(echo "$probe_error" | head -n1 | tr -d '\n')
+                    echo -e "${YELLOW}⚠ OCI Probe Warning: ${clean_err:0:80}...${RESET}"
                 fi
             fi
             ;;
         GitHub)
-            if ! gh auth status &> /dev/null; then echo -e "${YELLOW}⚠ Not logged into GitHub CLI.${RESET}"; fi
+            if ! gh auth status &> /dev/null; then
+                if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+                    echo -e "${CYAN}⚡ [NEURAL] Attempting Auto-Login to GitHub CLI...${RESET}"
+                    if echo "$GITHUB_TOKEN" | gh auth login --with-token; then
+                        echo -e "${GREEN}✔ [OK] GitHub CLI authorized via token.${RESET}"
+                    else
+                        echo -e "${RED}✘ [ERROR] GitHub CLI auto-login failed.${RESET}"; return 1
+                    fi
+                elif [[ -n "${GITHUB_PERSONAL_ACCESS_TOKEN:-}" ]]; then
+                    echo -e "${CYAN}⚡ [NEURAL] Attempting Auto-Login to GitHub CLI via PAT...${RESET}"
+                    if echo "$GITHUB_PERSONAL_ACCESS_TOKEN" | gh auth login --with-token; then
+                        echo -e "${GREEN}✔ [OK] GitHub CLI authorized via PAT.${RESET}"
+                    else
+                        echo -e "${RED}✘ [ERROR] GitHub CLI auto-login failed.${RESET}"; return 1
+                    fi
+                else
+                    echo -e "${RED}✘ [ERROR] Not logged into GitHub CLI and no \$GITHUB_TOKEN found.${RESET}"
+                    return 1
+                fi
+            fi
             ;;
     esac
     return 0
 }
 
-[[ "$PUBLISH_NPM" == true ]] && check_tool "npm" && check_auth "NPM"
-[[ "$PUBLISH_PYPI" == true ]] && check_tool "maturin" && check_tool "uv" && check_auth "PyPI"
-[[ "$PUBLISH_DOCKER" == true ]] && check_tool "docker" && check_auth "OCI"
-[[ "$PUBLISH_SNAP" == true ]] && check_tool "snapcraft"
-[[ "$PUBLISH_GITHUB" == true ]] && check_tool "gh" && check_auth "GitHub"
+if [[ "$PUBLISH_NPM" == true ]]; then
+    check_tool "npm" || exit 1
+    check_auth "NPM" || exit 1
+fi
+
+if [[ "$PUBLISH_PYPI" == true ]]; then
+    check_tool "maturin" || exit 1
+    check_tool "uv" || exit 1
+    check_auth "PyPI" || exit 1
+fi
+
+if [[ "$PUBLISH_DOCKER" == true ]]; then
+    check_tool "docker" || exit 1
+    check_auth "OCI" || exit 1
+fi
+
+if [[ "$PUBLISH_SNAP" == true ]]; then
+    check_tool "snapcraft" || exit 1
+fi
+
+if [[ "$PUBLISH_GITHUB" == true ]]; then
+    check_tool "gh" || exit 1
+    check_auth "GitHub" || exit 1
+fi
 
 echo -e "${GREEN}✔ Mission Pre-flight Audit Complete.${RESET}"
 
@@ -350,11 +439,36 @@ if [ "$PUBLISH_GITHUB" = true ]; then
             if [[ "$confirm_github" =~ ^([yY][eE][sS]|[yY])$ ]]; then
                 log_mission "DISTRIBUTION: Initiating GitHub Assets release..."
                 
-                # Ensure tag exists
+                # Ensure tag exists locally and is pushed to remote
                 if ! git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-                    echo -e "${YELLOW}⚠ Tag v${VERSION} not found. Creating local tag...${RESET}"
-                    git tag "v${VERSION}" || true
-                    git push origin "v${VERSION}" || true
+                    echo -e "${YELLOW}⚠ Tag v${VERSION} not found locally. Creating...${RESET}"
+                    git tag "v${VERSION}" || err "Failed to create local tag v${VERSION}."
+                fi
+                
+                echo -e "${CYAN}⚡ Verifying remote tag integrity...${RESET}"
+                if ! git ls-remote --tags origin "v${VERSION}" | grep -q "refs/tags/v${VERSION}"; then
+                    echo -e "${YELLOW}⚠ Tag v${VERSION} not found on remote 'origin'. Pushing...${RESET}"
+                    
+                    MAX_TAG_RETRIES=3
+                    TAG_RETRY_COUNT=0
+                    TAG_PUSH_SUCCESS=false
+                    while [ $TAG_RETRY_COUNT -lt $MAX_TAG_RETRIES ]; do
+                        if git push origin "v${VERSION}"; then
+                            TAG_PUSH_SUCCESS=true
+                            break
+                        else
+                            TAG_RETRY_COUNT=$((TAG_RETRY_COUNT + 1))
+                            warn "Tag push failed. Retrying... ($TAG_RETRY_COUNT/$MAX_TAG_RETRIES)"
+                            sleep 2
+                        fi
+                    done
+                    
+                    if [ "$TAG_PUSH_SUCCESS" = false ]; then
+                        err "Failed to push tag v${VERSION} to remote. GitHub Release requires the tag to be live."
+                    fi
+                    echo -e "${GREEN}✔ Tag v${VERSION} pushed to remote.${RESET}"
+                else
+                    echo -e "${GREEN}✔ Tag v${VERSION} verified on remote.${RESET}"
                 fi
                 
                 # Check if release exists, if not create it
@@ -362,12 +476,26 @@ if [ "$PUBLISH_GITHUB" = true ]; then
                     gh release create "v${VERSION}" --title "v${VERSION}" --notes "MYTH v${VERSION} Release" --draft
                 fi
                 
-                # Enumerate binaries
+                # Enumerate and rename binaries to prevent GitHub filename collisions
+                mkdir -p "target/gh_assets"
                 GH_ASSETS=()
-                [ -f "target/release/myth" ] && GH_ASSETS+=("target/release/myth#myth-amd64-linux")
-                [ -f "target/x86_64-unknown-linux-gnu/release/myth" ] && GH_ASSETS+=("target/x86_64-unknown-linux-gnu/release/myth#myth-x86_64-unknown-linux-gnu")
-                [ -f "target/aarch64-unknown-linux-gnu/release/myth" ] && GH_ASSETS+=("target/aarch64-unknown-linux-gnu/release/myth#myth-aarch64-unknown-linux-gnu")
-                [ -f "target/armv7-unknown-linux-gnueabihf/release/myth" ] && GH_ASSETS+=("target/armv7-unknown-linux-gnueabihf/release/myth#myth-armv7-unknown-linux-gnueabihf")
+                
+                if [ -f "target/release/myth" ]; then
+                    cp "target/release/myth" "target/gh_assets/myth-amd64-linux"
+                    GH_ASSETS+=("target/gh_assets/myth-amd64-linux")
+                fi
+                if [ -f "target/x86_64-unknown-linux-gnu/release/myth" ]; then
+                    cp "target/x86_64-unknown-linux-gnu/release/myth" "target/gh_assets/myth-x86_64-unknown-linux-gnu"
+                    GH_ASSETS+=("target/gh_assets/myth-x86_64-unknown-linux-gnu")
+                fi
+                if [ -f "target/aarch64-unknown-linux-gnu/release/myth" ]; then
+                    cp "target/aarch64-unknown-linux-gnu/release/myth" "target/gh_assets/myth-aarch64-unknown-linux-gnu"
+                    GH_ASSETS+=("target/gh_assets/myth-aarch64-unknown-linux-gnu")
+                fi
+                if [ -f "target/armv7-unknown-linux-gnueabihf/release/myth" ]; then
+                    cp "target/armv7-unknown-linux-gnueabihf/release/myth" "target/gh_assets/myth-armv7-unknown-linux-gnueabihf"
+                    GH_ASSETS+=("target/gh_assets/myth-armv7-unknown-linux-gnueabihf")
+                fi
                 
                 if [ ${#GH_ASSETS[@]} -gt 0 ]; then
                     if gh release upload "v${VERSION}" "${GH_ASSETS[@]}" --clobber; then

@@ -84,10 +84,14 @@ else
     info "APT staging skipped (--no-apt)."
 fi
 
-# ── Copy version.txt if not already in APT_SRC ──
+# ── Copy Version Manifests if not already in APT_SRC ──
 if [ -f "$PROJECT_ROOT/target/version.txt" ]; then
     cp "$PROJECT_ROOT/target/version.txt" .
     ok "Merged version.txt"
+fi
+if [ -f "$PROJECT_ROOT/target/versions.json" ]; then
+    cp "$PROJECT_ROOT/target/versions.json" .
+    ok "Merged versions.json manifest"
 fi
 
 cp "$PROJECT_ROOT/scripts/install.sh" .
@@ -103,7 +107,7 @@ AGENT_NAME=$(grep "name:" "$PROJECT_ROOT/config/agent.yaml" | head -n 1 | sed -E
 sed -i "s|__REPO_URL__|$REPO_URL|g;s|__PAGES_URL__|$PAGES_URL|g;s|__VERSION__|$VERSION|g;s|__AGENT_NAME__|$AGENT_NAME|g" install.sh bootstrap.sh uninstall.sh update.sh
 
 info "Generating asset manifest..."
-sha256sum install.sh bootstrap.sh uninstall.sh update.sh user.yaml myth.gpg version.txt > SHA256SUMS 2>/dev/null || true
+sha256sum install.sh bootstrap.sh uninstall.sh update.sh user.yaml myth.gpg version.txt versions.json > SHA256SUMS 2>/dev/null || true
 ok "Artifact manifest (SHA256SUMS) generated."
 
 # ── 4.5. Handle Custom Domain (CNAME) ──
@@ -124,8 +128,24 @@ else
 fi
 # --force-with-lease is safer than --force: fails if upstream changed unexpectedly
 # --set-upstream is needed on a brand-new orphan branch with no tracking ref yet
-git push origin "$PAGES_BRANCH" --force-with-lease --set-upstream 2>/dev/null \
-    || git push origin "$PAGES_BRANCH" --force
+MAX_RETRIES=3
+RETRY_COUNT=0
+PUSH_SUCCESS=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if git push origin "$PAGES_BRANCH" --force-with-lease --set-upstream 2>/dev/null || git push origin "$PAGES_BRANCH" --force; then
+        PUSH_SUCCESS=true
+        break
+    else
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        warn "Push failed (Network or DNS issue). Retrying... ($RETRY_COUNT/$MAX_RETRIES) in 3 seconds..."
+        sleep 3
+    fi
+done
+
+if [ "$PUSH_SUCCESS" = false ]; then
+    err "Failed to push to GitHub Pages after $MAX_RETRIES attempts. Check your network or permissions."
+fi
 
 # ── 6. Final Integrity Check ──
 cd "$PROJECT_ROOT"

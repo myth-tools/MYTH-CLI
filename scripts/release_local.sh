@@ -99,7 +99,8 @@ ok "Package generated: $AMD64_DEB"
 echo ""
 echo -e "${CYAN}${BOLD}⠿ MULTI-ARCHITECTURE SUPPORT${NC}"
 echo -e "Build ARM64 package? Required for Kali Nethunter, Termux, Raspberry Pi users."
-read -r -p "Cross-compile arm64 .deb? (adds ~5-20 min first run, output will stream) [Y/n]: " cross_confirm
+# Auto-confirming ARM64 cross-build for full-spectrum tactical readiness.
+cross_confirm="y"
 CROSS_DEBS=()
 if [[ ! "$cross_confirm" =~ ^[Nn]$ ]]; then
     info "Initiating cross-compilation engine..."
@@ -122,23 +123,24 @@ fi
 echo ""
 echo -e "${CYAN}${BOLD}⠿ MULTI-DISTRO PACKAGE GENERATION${NC}"
 echo -e "Build RPM and Arch packages for Fedora, RHEL, Arch, and Manjaro users."
-read -r -p "Generate RPM + Arch packages? [Y/n]: " multi_pkg_confirm
+# Auto-confirming RPM + Arch generation for multi-distro coverage.
+multi_pkg_confirm="y"
 if [[ ! "$multi_pkg_confirm" =~ ^[Nn]$ ]]; then
-    # Determine which architectures to build for poly-distro formats
-    PKG_ARCHES="x86_64"
+    # Determine architectures for poly-distro formats
+    PKG_ARCHES=("x86_64")
     if [ -f "target/aarch64-unknown-linux-gnu/release/myth" ]; then
-        PKG_ARCHES="$PKG_ARCHES aarch64"
+        PKG_ARCHES+=("aarch64")
     fi
 
-    info "Building RPM packages ($PKG_ARCHES)..."
-    if bash scripts/build_rpm.sh "$PKG_ARCHES"; then
+    info "Building RPM packages (${PKG_ARCHES[*]})..."
+    if bash scripts/build_rpm.sh "${PKG_ARCHES[@]}"; then
         ok "RPM packages built successfully."
     else
         warn "RPM build failed. Fedora/RHEL users will fall back to binary download."
     fi
 
-    info "Building Arch packages ($PKG_ARCHES)..."
-    if bash scripts/build_arch.sh "$PKG_ARCHES"; then
+    info "Building Arch packages (${PKG_ARCHES[*]})..."
+    if bash scripts/build_arch.sh "${PKG_ARCHES[@]}"; then
         ok "Arch packages built successfully."
     else
         warn "Arch build failed. Arch users will use AUR or binary download."
@@ -242,6 +244,15 @@ if [ -f "target/version.txt" ]; then
     ok "Version manifest staged."
 fi
 
+# Generate Unified Version Manifest for the Web Nexus
+info "Generating dynamic version manifest (JSON)..."
+if bash scripts/generate-version-manifest.sh && [ -f "target/versions.json" ] && jq . "target/versions.json" >/dev/null 2>&1; then
+    cp target/versions.json ~/.aptly/public/versions.json
+    ok "Web Nexus manifest synchronized and validated."
+else
+    err "Manifest generation failed or produced invalid JSON. Mission scrubbed."
+fi
+
 echo ""
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 ok "🚀 Version ${VERSION} is now added to your local repositories (APT + RPM + Arch)."
@@ -300,7 +311,8 @@ fi
 
 echo -e "${CYAN}${BOLD}└──────────────────────┴─────────────┴──────────────────────────┘${NC}"
 
-# 6. Git Tagging for Visibility
+# ─── 6. Git Tagging for Visibility ───
+section "GIT TAGGING & SOURCE INTEGRITY"
 echo -e "${BOLD}Do you want to tag this version as v${VERSION} and push to GitHub? [y/N]${NC}"
 read -r -p "Run: git tag v${VERSION} && git push origin v${VERSION}? " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -325,15 +337,10 @@ fi
 ok "✅ Local Release Pipeline Complete for $PAGES_URL"
 info "Note: All Git operations were confined to an isolated /tmp workspace."
 
-# ─── 6. Mission Expansion: Global Distribution ───
+# ─── 7. Mission Expansion: Global Distribution ───
 echo -e "\n${CYAN}${BOLD}⠿ MISSION EXPANSION: GLOBAL BROADCAST${NC}"
-echo -e "Your local build and tags are secure. Ready to push to global registries?"
-read -r -p "Engage Global Distribution Engine (NPM, PyPI, OCI)? [y/N]: " dist_confirm
-if [[ "$dist_confirm" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    bash scripts/distribute.sh --all
-else
-    info "Global distribution deferred. Run 'bash scripts/distribute.sh --all' manually."
-fi
+echo -e "Local release success. Engaging Master Distribution Engine..."
+bash scripts/distribute.sh --all
 
 # ─── 8. Final Integrity Verification ───
 section "FINAL INTEGRITY VERIFICATION"
@@ -346,5 +353,20 @@ if [ "$MISSING_ARTIFACTS" -eq 0 ]; then
     echo -e "\n${GREEN}${BOLD}🚀 [ALL MISSIONS COMPLETE] MYTH is now globally tactical.${NC}"
 else
     warn "Some artifacts appear missing from the public staging area. Review logs."
+fi
+
+# ─── 9. Web Nexus Deployment (GitHub Pages) ───
+echo -e "\n${CYAN}${BOLD}⠿ WEB NEXUS DEPLOYMENT${NC}"
+echo -e "Ready to push Linux repositories to GitHub Pages? (v${VERSION})"
+read -r -p "Confirm Web Nexus deployment (type 'CONFIRM'): " confirm_pages
+if [[ "$confirm_pages" == "CONFIRM" ]]; then
+    info "Initiating Web Nexus deployment sequence..."
+    if bash scripts/deploy_pages_local.sh; then
+        ok "Web Nexus deployment successful."
+    else
+        warn "Web Nexus deployment failed. Repositories may not be live."
+    fi
+else
+    info "Web Nexus deployment skipped by operator."
 fi
 

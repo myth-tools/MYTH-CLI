@@ -4,6 +4,21 @@
 # ═══════════════════════════════════════════════════
 set -euo pipefail
 
+# ─── Global Cleanup Orchestrator ───
+CLEANUP_FILES=()
+cleanup() {
+    local exit_code=$?
+    if [ ${#CLEANUP_FILES[@]} -gt 0 ]; then
+        info "Performing tactical cleanup of ${#CLEANUP_FILES[@]} artifacts..."
+        for file in "${CLEANUP_FILES[@]}"; do
+            [ -e "$file" ] && rm -rf "$file"
+        done
+    fi
+    exit "$exit_code"
+}
+trap cleanup EXIT INT TERM
+
+
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 # ─── Visual Branding (Ultra-Premium Cyber Style) ───
@@ -150,9 +165,10 @@ else
 fi
 
 # 2d. Generate version.txt for update checking
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
-echo "$VERSION" > target/version.txt
-ok "Version manifest: target/version.txt ($VERSION)"
+MYTH_VERSION=$(grep -m1 "^version[[:space:]]*=" Cargo.toml | cut -d '"' -f 2)
+echo "$MYTH_VERSION" > target/version.txt
+
+ok "Version manifest: target/version.txt ($MYTH_VERSION)"
 
 # 3. Add ALL packages to aptly
 info "Adding package(s) to aptly repo..."
@@ -244,6 +260,15 @@ if [ -f "target/version.txt" ]; then
     ok "Version manifest staged."
 fi
 
+# Stage Static Portability Binaries (Direct Termux / Alpine / Minimal)
+if [ -d "target/portability" ] && [ "$(ls -A target/portability 2>/dev/null)" ]; then
+    info "Staging Static Portability Binaries..."
+    mkdir -p ~/.aptly/public/bin
+    cp -r target/portability/. ~/.aptly/public/bin/
+    ok "Portability binaries staged at ~/.aptly/public/bin/"
+fi
+
+
 # Generate Unified Version Manifest for the Web Nexus
 info "Generating dynamic version manifest (JSON)..."
 if bash scripts/generate-version-manifest.sh && [ -f "target/versions.json" ] && jq . "target/versions.json" >/dev/null 2>&1; then
@@ -254,8 +279,9 @@ else
 fi
 
 echo ""
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
-ok "🚀 Version ${VERSION} is now added to your local repositories (APT + RPM + Arch)."
+MYTH_VERSION=$(grep -m1 "^version[[:space:]]*=" Cargo.toml | cut -d '"' -f 2)
+ok "🚀 Version ${MYTH_VERSION} is now added to your local repositories (APT + RPM + Arch)."
+
 
 # ─── 5. Final Build Summary & Integrity ───
 section "FINAL BUILD SUMMARY & INTEGRITY"
@@ -309,27 +335,39 @@ else
     print_row "Arch (.pkg.tar)" "multiple" "⚠ Skipped/Missing" "${YELLOW}"
 fi
 
+# Static / Portability
+if [ -d "target/portability" ] && [ "$(ls -A target/portability 2>/dev/null)" ]; then
+    for bin in target/portability/myth-*-static; do
+        [ -e "$bin" ] || continue
+        arch=$(basename "$bin" | sed -E 's/myth-musl-([^-]+)-static/\1/')
+        print_row "Static (Portable)" "$arch" "✔ Built" "${GREEN}"
+    done
+else
+    print_row "Static (Portable)" "arm64/x64" "✘ Missing" "${RED}"
+fi
+
 echo -e "${CYAN}${BOLD}└──────────────────────┴─────────────┴──────────────────────────┘${NC}"
+
 
 # ─── 6. Git Tagging for Visibility ───
 section "GIT TAGGING & SOURCE INTEGRITY"
-echo -e "${BOLD}Do you want to tag this version as v${VERSION} and push to GitHub? [y/N]${NC}"
-read -r -p "Run: git tag v${VERSION} && git push origin v${VERSION}? " response
+echo -e "${BOLD}Do you want to tag this version as v${MYTH_VERSION} and push to GitHub? [y/N]${NC}"
+read -r -p "Run: git tag v${MYTH_VERSION} && git push origin v${MYTH_VERSION}? " response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     info "Tagging and pushing..."
-    if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-        warn "Tag v${VERSION} already exists. Skipping tag creation."
+    if git rev-parse "v${MYTH_VERSION}" >/dev/null 2>&1; then
+        warn "Tag v${MYTH_VERSION} already exists. Skipping tag creation."
     else
-        git tag "v${VERSION}" || err "Failed to create tag v${VERSION}."
+        git tag "v${MYTH_VERSION}" || err "Failed to create tag v${MYTH_VERSION}."
     fi
     
-    if ! git push origin "v${VERSION}"; then
+    if ! git push origin "v${MYTH_VERSION}"; then
         warn "Failed to push tag directly. Attempting to force update or delete local stale tag..."
         # If the push fails, we don't want to leave a local tag that isn't on remote
         # unless it was already on remote.
         err "Git push failed. Check your network or credentials."
     fi
-    ok "Tag v${VERSION} is now live on GitHub!"
+    ok "Tag v${MYTH_VERSION} is now live on GitHub!"
 else
     info "Skipping Git Tagging."
 fi
@@ -357,7 +395,7 @@ fi
 
 # ─── 9. Web Nexus Deployment (GitHub Pages) ───
 echo -e "\n${CYAN}${BOLD}⠿ WEB NEXUS DEPLOYMENT${NC}"
-echo -e "Ready to push Linux repositories to GitHub Pages? (v${VERSION})"
+echo -e "Ready to push Linux repositories to GitHub Pages? (v${MYTH_VERSION})"
 read -r -p "Confirm Web Nexus deployment (type 'CONFIRM'): " confirm_pages
 if [[ "$confirm_pages" == "CONFIRM" ]]; then
     info "Initiating Web Nexus deployment sequence..."

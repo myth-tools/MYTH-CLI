@@ -41,13 +41,18 @@ declare -A ARCH_MAP=(
     [musl-arm64]="aarch64-unknown-linux-musl"
 )
 
+# ─── Portability Target List (Static binaries for Termux/Alpine) ───
+PORTABILITY_TARGETS=("musl-x64" "musl-arm64")
+
+
 # ─── Determine what to build ───
 if [ $# -eq 0 ]; then
-    # Default: skip host arch (already built by release_local.sh), build arm64
-    BUILD_ARCHES=("arm64")
+    # Default: build arm64 (Glibc) and all Portability targets (Static)
+    BUILD_ARCHES=("arm64" "${PORTABILITY_TARGETS[@]}")
 else
     BUILD_ARCHES=("$@")
 fi
+
 
 case "$(uname -m)" in
     x86_64)  HOST_DEB_ARCH="amd64" ;;
@@ -97,8 +102,11 @@ if ! cargo deb --version &>/dev/null; then
 fi
 ok "cargo-deb: $(cargo deb --version 2>/dev/null)"
 
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
-info "Package version: $VERSION"
+# Standardized Extraction: Targets the top-level version field from Cargo.toml
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
+
+info "Package version: $MYTH_VERSION"
 
 PRODUCED_DEBS=()
 
@@ -164,28 +172,46 @@ for DEB_ARCH in "${BUILD_ARCHES[@]}"; do
     fi
     ok "Binary compiled: $CROSS_BINARY ($(du -h "$CROSS_BINARY" | cut -f1))"
 
-    # ─── Package with cargo-deb ───
-    # cargo-deb reads the binary path from --target and sets architecture automatically
-    info "Packaging .deb for $DEB_ARCH..."
-    cargo deb --no-build --target "$RUST_TARGET" 2>&1 | tail -5
+    # ─── Package Selection Logic ───
+    # Portability targets are kept as raw static binaries. Standard targets are packaged as .deb.
+    IS_STATIC=false
+    for pt in "${PORTABILITY_TARGETS[@]}"; do
+        if [ "$DEB_ARCH" = "$pt" ]; then IS_STATIC=true; break; fi
+    done
 
-    # cargo-deb places the .deb under target/<RUST_TARGET>/debian/
-    CROSS_DEB=$(find "target/$RUST_TARGET/debian" -maxdepth 1 -name 'myth_*.deb' | sort -rV | head -1 || true)
+    if [ "$IS_STATIC" = true ]; then
+        info "Preserving static binary for portability archive..."
+        mkdir -p target/portability
+        DEST_BIN="target/portability/myth-${DEB_ARCH}-static"
+        cp "$CROSS_BINARY" "$DEST_BIN"
+        chmod +x "$DEST_BIN"
+        ok "Static binary ready: $DEST_BIN ($(du -h "$DEST_BIN" | cut -f1))"
+        # We don't add to PRODUCED_DEBS, but we track it for the summary if needed
+    else
+        # ─── Package with cargo-deb ───
+        # cargo-deb reads the binary path from --target and sets architecture automatically
+        info "Packaging .deb for $DEB_ARCH..."
+        cargo deb --no-build --target "$RUST_TARGET" 2>&1 | tail -5
 
-    if [ -z "$CROSS_DEB" ]; then
-        warn "No .deb found in target/$RUST_TARGET/debian/ — skipping $DEB_ARCH."
-        continue
+        # cargo-deb places the .deb under target/<RUST_TARGET>/debian/
+        CROSS_DEB=$(find "target/$RUST_TARGET/debian" -maxdepth 1 -name 'myth_*.deb' | sort -rV | head -1 || true)
+
+        if [ -z "$CROSS_DEB" ]; then
+            warn "No .deb found in target/$RUST_TARGET/debian/ — skipping $DEB_ARCH."
+            continue
+        fi
+
+        # ─── Normalize filename and copy to target/debian/ ───
+        # This keeps all .deb files in one predictable location
+        mkdir -p target/debian
+        DEST_DEB="target/debian/myth_${MYTH_VERSION}-1_${DEB_ARCH}.deb"
+        cp "$CROSS_DEB" "$DEST_DEB"
+
+        ok "Package produced: $DEST_DEB ($(du -h "$DEST_DEB" | cut -f1))"
+        PRODUCED_DEBS+=("$DEST_DEB")
     fi
-
-    # ─── Normalize filename and copy to target/debian/ ───
-    # This keeps all .deb files in one predictable location
-    mkdir -p target/debian
-    DEST_DEB="target/debian/myth_${VERSION}-1_${DEB_ARCH}.deb"
-    cp "$CROSS_DEB" "$DEST_DEB"
-
-    ok "Package produced: $DEST_DEB ($(du -h "$DEST_DEB" | cut -f1))"
-    PRODUCED_DEBS+=("$DEST_DEB")
 done
+
 
 # ─── Summary ───
 section "BUILD SUMMARY"

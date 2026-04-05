@@ -55,7 +55,7 @@ provider:
   # Verified NVIDIA NIM model slugs (as of 2026-Q1).
   # Full model catalog: https://build.nvidia.com/explore/reasoning
   model: "deepseek-ai/deepseek-v3.1-terminus"
-  fallback_model: "deepseek-ai/deepseek-v3.2"
+  fallback_model: "qwen/qwen3-coder-480b-a35b-instruct"
   base_url: "https://integrate.api.nvidia.com/v1"
   temperature: 0.4
   # 128K tokens — the realistic maximum for NIM inference endpoints.

@@ -69,7 +69,9 @@ if [ ${#BUILD_ARCHES[@]} -eq 0 ]; then
 fi
 
 # ─── Extract metadata from Cargo.toml ───
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+# Standardized Extraction: Targets the top-level version field from Cargo.toml
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
 DESCRIPTION=$(sed -n 's/^description = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 LICENSE=$(sed -n 's/^license = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 HOMEPAGE=$(sed -n 's/^homepage = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
@@ -85,7 +87,7 @@ if [ -z "$PAGES_URL" ]; then
 fi
 
 section "ARCH LINUX PACKAGE BUILDER"
-info "Version: $VERSION"
+info "Version: $MYTH_VERSION"
 info "Architectures: ${BUILD_ARCHES[*]}"
 
 # ═══════════════════════════════════════════════════════════
@@ -231,7 +233,7 @@ SHA_ARMV7="SKIP"
 
 # ─── Replace placeholders ───
 sed -i \
-    -e "s|__VERSION__|$VERSION|g" \
+    -e "s|__VERSION__|$MYTH_VERSION|g" \
     -e "s|__DESCRIPTION__|$DESCRIPTION|g" \
     -e "s|__LICENSE__|$LICENSE|g" \
     -e "s|__HOMEPAGE__|$HOMEPAGE|g" \
@@ -249,7 +251,7 @@ ok "AUR PKGBUILD generated: $AUR_DIR/PKGBUILD"
 cat > "$AUR_DIR/.SRCINFO" << SRCEOF
 pkgbase = myth-bin
 	pkgdesc = $DESCRIPTION
-	pkgver = $VERSION
+	pkgver = $MYTH_VERSION
 	pkgrel = 1
 	url = $HOMEPAGE
 	install = myth-bin.install
@@ -275,9 +277,9 @@ pkgbase = myth-bin
 	optdepends = gobuster: directory/DNS brute-forcer
 	provides = myth
 	conflicts = myth
-	source_x86_64 = ${REPO_URL}/releases/download/v${VERSION}/myth-x86_64-unknown-linux-gnu
-	source_aarch64 = ${REPO_URL}/releases/download/v${VERSION}/myth-aarch64-unknown-linux-gnu
-	source_armv7h = ${REPO_URL}/releases/download/v${VERSION}/myth-armv7-unknown-linux-gnueabihf
+	source_x86_64 = ${REPO_URL}/releases/download/v${MYTH_VERSION}/myth-x86_64-unknown-linux-gnu
+	source_aarch64 = ${REPO_URL}/releases/download/v${MYTH_VERSION}/myth-aarch64-unknown-linux-gnu
+	source_armv7h = ${REPO_URL}/releases/download/v${MYTH_VERSION}/myth-armv7-unknown-linux-gnueabihf
 	sha256sums_x86_64 = $SHA_X64
 	sha256sums_aarch64 = $SHA_ARM64
 	sha256sums_armv7h = $SHA_ARMV7
@@ -299,7 +301,7 @@ if [ "$AUR_ONLY" = true ]; then
     info "To publish to AUR:"
     info "  1. git clone ssh://aur@aur.archlinux.org/myth-bin.git"
     info "  2. Copy PKGBUILD, .SRCINFO, myth-bin.install into the clone"
-    info "  3. git add . && git commit -m 'Update to v$VERSION' && git push"
+    info "  3. git add . && git commit -m 'Update to v$MYTH_VERSION' && git push"
     exit 0
 fi
 
@@ -343,7 +345,7 @@ for ARCH in "${BUILD_ARCHES[@]}"; do
     # ─── Create package structure manually ───
     # Since we're on Kali (not Arch), we can't use makepkg.
     # Instead, we build the .pkg.tar.zst manually using tar+zstd.
-    PKG_NAME="myth-${VERSION}-1-${ARCH}"
+    PKG_NAME="myth-${MYTH_VERSION}-1-${ARCH}"
     PKG_STAGING="${TMPDIR:-/tmp}/myth-arch-pkg-$$"
     rm -rf "$PKG_STAGING"
     mkdir -p "$PKG_STAGING/usr/bin"
@@ -378,7 +380,7 @@ for ARCH in "${BUILD_ARCHES[@]}"; do
     cat > "$PKG_STAGING/.PKGINFO" << PKGINFO
 pkgname = myth
 pkgbase = myth
-pkgver = ${VERSION}-1
+pkgver = ${MYTH_VERSION}-1
 pkgdesc = ${DESCRIPTION}
 url = ${HOMEPAGE}
 builddate = ${BUILD_DATE}
@@ -413,7 +415,8 @@ PKGINFO
     PKG_FILE="$ARCH_OUTPUT/${PKG_NAME}.pkg.tar.zst"
 
     info "Compressing package..."
-    (cd "$PKG_STAGING" && find . -maxdepth 1 -not -name '.' | sort | tar -cf - -T - | zstd -f -19 -T0 -o "$PKG_FILE")
+    # Deterministic packaging: recursive find with sorted order and --no-recursion
+    (cd "$PKG_STAGING" && find . -mindepth 1 -not -name '.' | sort | tar --no-recursion -cf - -T - | zstd -f -19 -T0 -o "$PKG_FILE")
 
     rm -rf "$PKG_STAGING"
 
@@ -475,5 +478,5 @@ echo -e "  ${BOLD}AUR Publication:${NC}"
 echo -e "    1. Create AUR account at https://aur.archlinux.org"
 echo -e "    2. git clone ssh://aur@aur.archlinux.org/myth-bin.git"
 echo -e "    3. Copy files from $AUR_DIR/ into the clone"
-echo -e "    4. git add . && git commit -m 'v$VERSION' && git push"
+echo -e "    4. git add . && git commit -m 'v$MYTH_VERSION' && git push"
 echo ""

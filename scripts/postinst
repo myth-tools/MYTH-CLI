@@ -184,7 +184,8 @@ case "$1" in
             fi
         fi
 
-        myth_log "MYTH Tactical Deployment (v${VERSION:-unknown}) Complete."
+        MYTH_VERSION=$(dpkg-query -W -f='${Version}' myth 2>/dev/null || echo "unknown")
+        myth_log "MYTH Tactical Deployment (v${MYTH_VERSION}) Complete."
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

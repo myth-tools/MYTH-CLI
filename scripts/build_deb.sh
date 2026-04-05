@@ -32,8 +32,11 @@ audit()   { echo -e "${CYAN}⠿${NC}  $1"; }
 section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}"; }
 
 # ─── Version Intelligence ───
-VERSION=$(grep "^version =" Cargo.toml | cut -d '"' -f 2)
-if [ -z "$VERSION" ]; then
+# Standardized Extraction: Targets the top-level version field from Cargo.toml
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
+
+if [ -z "$MYTH_VERSION" ]; then
     err "Could not extract version from Cargo.toml"
 fi
 
@@ -62,7 +65,7 @@ if [ ${#BUILD_ARCHES[@]} -eq 0 ]; then
 fi
 
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}"
-echo -e "${CYAN}  [ DEBIAN TACTICAL PACKAGE BUILDER — v$VERSION ]${NC}"
+echo -e "${CYAN}  [ DEBIAN TACTICAL PACKAGE BUILDER — v$MYTH_VERSION ]${NC}"
 echo -e "  ${BOLD}Initiating package construction for: ${BUILD_ARCHES[*]}${NC}\n"
 
 # ─── High-Fidelity Validation ───

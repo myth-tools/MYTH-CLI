@@ -101,10 +101,11 @@ cp "$PROJECT_ROOT/scripts/update.sh" .
 cp "$PROJECT_ROOT/config/user.yaml" .   # Full config template for installer
 cp "$PROJECT_ROOT/myth.gpg" .            # Copy GPG public key for APT + RPM
 
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' "$PROJECT_ROOT/Cargo.toml" | head -n 1)
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$PROJECT_ROOT/Cargo.toml" | head -n 1)
+
 AGENT_NAME=$(grep "name:" "$PROJECT_ROOT/config/agent.yaml" | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')
 
-sed -i "s|__REPO_URL__|$REPO_URL|g;s|__PAGES_URL__|$PAGES_URL|g;s|__VERSION__|$VERSION|g;s|__AGENT_NAME__|$AGENT_NAME|g" install.sh bootstrap.sh uninstall.sh update.sh
+sed -i "s|__REPO_URL__|$REPO_URL|g;s|__PAGES_URL__|$PAGES_URL|g;s|__VERSION__|$MYTH_VERSION|g;s|__AGENT_NAME__|$AGENT_NAME|g" install.sh bootstrap.sh uninstall.sh update.sh
 
 info "Generating asset manifest..."
 sha256sum install.sh bootstrap.sh uninstall.sh update.sh user.yaml myth.gpg version.txt versions.json > SHA256SUMS 2>/dev/null || true

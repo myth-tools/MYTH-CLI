@@ -91,8 +91,10 @@ static ANSI_RE: Lazy<Regex> = Lazy::new(|| {
 // CONSTANTS & CONFIGURATION
 // =============================================================================
 
-static VERSION: Lazy<String> =
-    Lazy::new(|| std::env::var("MYTH_VERSION").unwrap_or_else(|_| "v0.1.0-QUANTUM".to_string()));
+static VERSION: Lazy<String> = Lazy::new(|| {
+    std::env::var("MYTH_VERSION").unwrap_or_else(|_| format!("v{}", env!("CARGO_PKG_VERSION")))
+});
+
 static AGENT_NAME: Lazy<String> =
     Lazy::new(|| std::env::var("MYTH_NAME").unwrap_or_else(|_| "MYTH".to_string()));
 const DEFAULT_CONCURRENCY: usize = 250;

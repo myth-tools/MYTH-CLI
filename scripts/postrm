@@ -1,9 +1,13 @@
 #!/bin/sh
 # ═══════════════════════════════════════════════════
 #  MYTH — Universal Maintainer Script (postrm)
-#  Supports: Debian, Fedora/RPM, Arch, Termux
+#  Supports: Debian, Fedora/RPM, Arch, Termux, Alpine
 # ═══════════════════════════════════════════════════
 set -e
+
+# Establish MYTH_VERSION for maintainer logging parity
+MYTH_VERSION=$(dpkg-query -W -f='${Version}' myth 2>/dev/null || echo "unknown")
+
 
 # ─── Tactical UI Standard ───
 myth_log() {
@@ -17,6 +21,10 @@ myth_log() {
         printf "[MYTH] %s\n" "$1"
     fi
 }
+
+# Tactical Initialization
+myth_log "Executing Universal Post-Removal Handler [v${MYTH_VERSION}]"
+
 
 # ─── OS Detection ───
 # shellcheck disable=SC2034

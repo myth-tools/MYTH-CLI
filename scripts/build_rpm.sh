@@ -65,14 +65,16 @@ if [ ${#BUILD_ARCHES[@]} -eq 0 ]; then
 fi
 
 # ─── Extract metadata from Cargo.toml ───
-VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+# Standardized Extraction: Targets the top-level version field from Cargo.toml
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
 DESCRIPTION=$(sed -n 's/^description = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 LICENSE=$(sed -n 's/^license = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 HOMEPAGE=$(sed -n 's/^homepage = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 # REPO_URL is unused but extracted for manifest parity
 
 section "RPM PACKAGE BUILDER"
-info "Version: $VERSION"
+info "Version: $MYTH_VERSION"
 info "Architectures: ${BUILD_ARCHES[*]}"
 
 # ─── Pre-flight checks ───
@@ -254,7 +256,7 @@ SPECEOF
 PROJECT_ROOT=$(pwd)
 CHANGELOG_DATE=$(date '+%a %b %d %Y')
 sed -i \
-    -e "s|__VERSION__|$VERSION|g" \
+    -e "s|__VERSION__|$MYTH_VERSION|g" \
     -e "s|__DESCRIPTION__|$DESCRIPTION|g" \
     -e "s|__LICENSE__|$LICENSE|g" \
     -e "s|__HOMEPAGE__|$HOMEPAGE|g" \

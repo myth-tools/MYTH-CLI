@@ -110,8 +110,10 @@ FMT_STATUS="${GREEN}AUTO-FIXED & VERIFIED${NC}"
 header "Phase 0.5: Shell Script Quality (shellcheck)"
 status "Linting bash scripts & maintainer files" "${YELLOW}" "🐚"
 if command -v shellcheck &>/dev/null; then
-    # Dynamically find all .sh files and maintainer scripts for auditing
-    run_step "shellcheck scripts" find scripts -type f \( -name "*.sh" -o -name "postinst" -o -name "postrm" -o -name "preinst" -o -name "prerm" \) -exec shellcheck {} +
+    # Dynamically find all bash scripts and maintainer hooks for auditing
+    # Includes all .sh files plus nameless hooks in scripts/ and package_runners/
+    run_step "shellcheck all scripts" find scripts package_runners -type f \( -name "*.sh" -o -name "postinst" -o -name "postrm" -o -name "preinst" -o -name "prerm" \) -exec shellcheck {} +
+
 else
     echo -e " [ ${YELLOW}SKIPPED (shellcheck not installed)${NC} ]"
 fi

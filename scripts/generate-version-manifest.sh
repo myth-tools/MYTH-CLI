@@ -195,7 +195,15 @@ wait
 log "Parallel extraction complete. Assembling final manifest..."
 
 # Assemble final JSON array
-jq -s '.' "$TEMP_JSON_DIR"/*.json > "$OUTPUT_FILE"
+# Guard against empty TEMP_JSON_DIR (no packages found) — preventing glob expansion failure
+JSON_FILES=$(find "$TEMP_JSON_DIR" -maxdepth 1 -name "*.json" 2>/dev/null)
+if [ -n "$JSON_FILES" ]; then
+    # We use xargs to pass the file list safely to jq
+    echo "$JSON_FILES" | xargs jq -s '.' > "$OUTPUT_FILE"
+else
+    log "No package entries found. Generating empty manifest."
+    echo "[]" > "$OUTPUT_FILE"
+fi
 
 # Final schema validation
 if jq . "$OUTPUT_FILE" >/dev/null 2>&1; then

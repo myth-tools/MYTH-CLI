@@ -31,7 +31,7 @@ NC='\033[0m'
 
 # These placeholders are replaced by CI/CD during release
 AGENT_NAME="__AGENT_NAME__"
-VERSION="__VERSION__"
+MYTH_VERSION="0.1.0"
 PAGES_URL="__PAGES_URL__"
 
 # ─── Flag Parsing ───
@@ -46,11 +46,13 @@ done
 if [[ "$AGENT_NAME" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
         AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E "s/.*name:[[:space:]]*[\"'\":]*([^\"']+)[\"'\":]*.*/\1/" | awk '{print $1}')
-        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+        # Standardized Extraction: Targets the top-level version field from Cargo.toml
+        MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
         PAGES_URL=$(grep "pages_url:" config/agent.yaml | head -n 1 | sed -E "s/.*pages_url:[[:space:]]*[\"'\":]*([^\"']+)[\"'\":]*.*/\1/")
     else
         AGENT_NAME="MYTH"
-        VERSION="0.1.0"
+        MYTH_VERSION="0.1.0"
         PAGES_URL="https://myth.work.gd"
     fi
 fi
@@ -63,9 +65,21 @@ err()     { echo -e "${RED}✘  [FATAL]${NC} $1"; exit 1; }
 audit()   { echo -e "${CYAN}⠿${NC}  $1"; }
 section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}"; }
 
+# ─── Global Cleanup & Trapping ───
+CLEANUP_FILES=()
+cleanup() {
+    local exit_code=$?
+    if [ ${#CLEANUP_FILES[@]} -gt 0 ]; then
+        rm -f "${CLEANUP_FILES[@]}" 2>/dev/null || true
+    fi
+    exit $exit_code
+}
+trap cleanup EXIT INT TERM
+
+
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}"
 echo -e "${CYAN}  [ ${AGENT_NAME} — UNIVERSAL TACTICAL REPOSITORY BOOTSTRAP ]${NC}"
-echo -e "  ${BOLD}Establishing neural link (v${VERSION})...${NC}\n"
+echo -e "  ${BOLD}Establishing neural link (v${MYTH_VERSION})...${NC}\n"
 
 # ─── Pre-flight Checks ───
 section "PRE-FLIGHT VALIDATION"
@@ -183,10 +197,10 @@ bootstrap_debian() {
     rm -f "$APT_KEYRINGS_DIR/myth.gpg"
 
     TEMP_KEY=$(mktemp "${TMPDIR:-/tmp}/myth-key.XXXXXX")
-    # Clean up temp key immediately after use logic, avoiding global exit trap issues
+    CLEANUP_FILES+=("$TEMP_KEY")
     
     download_file "${PAGES_URL}/myth.gpg" "$TEMP_KEY" \
-        || { rm -f "$TEMP_KEY"; err "Failed to download signing key."; }
+        || err "Failed to download signing key."
 
     [ -s "$TEMP_KEY" ] || { rm -f "$TEMP_KEY"; err "Downloaded signing key is empty."; }
 
@@ -245,7 +259,7 @@ bootstrap_termux() {
     info "Importing signing key for Termux..."
 
     TEMP_KEY=$(mktemp "${TMPDIR:-/tmp}/myth-key.XXXXXX")
-    trap 'rm -f "$TEMP_KEY"' EXIT
+    CLEANUP_FILES+=("$TEMP_KEY")
 
     download_file "${PAGES_URL}/myth.gpg" "$TEMP_KEY" \
         || err "Failed to download signing key."
@@ -296,8 +310,9 @@ bootstrap_fedora() {
     fi
 
     TEMP_KEY=$(mktemp "${TMPDIR:-/tmp}/myth-key.XXXXXX")
+    CLEANUP_FILES+=("$TEMP_KEY")
     download_file "${PAGES_URL}/myth.gpg" "$TEMP_KEY" \
-        || { rm -f "$TEMP_KEY"; err "Failed to download signing key."; }
+        || err "Failed to download signing key."
 
     rpm --import "$TEMP_KEY" 2>/dev/null \
         || warn "GPG import warning (non-fatal)."

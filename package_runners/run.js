@@ -97,6 +97,9 @@ async function executeDeployment() {
             stdio: 'inherit'
         });
 
+        // Register the child so top-level signal handlers can propagate to it during install
+        _childProc = proc;
+
         proc.on('error', (err) => {
             console.error(format.red(`\n✘ [SPAWN ERROR] Failed to initialize deployment: ${err.message}`));
             reject(err);

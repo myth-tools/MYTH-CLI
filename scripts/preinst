@@ -1,9 +1,13 @@
 #!/bin/sh
 # ═══════════════════════════════════════════════════
 #  MYTH — Universal Maintainer Script (preinst)
-#  Supports: Debian, Fedora/RPM, Arch, Termux
+#  Supports: Debian, Fedora/RPM, Arch, Termux, Alpine
 # ═══════════════════════════════════════════════════
 set -e
+
+# Establish MYTH_VERSION for maintainer logging parity
+MYTH_VERSION=$(dpkg-query -W -f='${Version}' myth 2>/dev/null || echo "unknown")
+
 
 # ─── Tactical UI Standard ───
 myth_log() {
@@ -18,6 +22,10 @@ myth_log() {
         printf "[MYTH] %s\n" "$1"
     fi
 }
+
+# Tactical Initialization
+myth_log "Executing Universal Pre-Installation Handler [v${MYTH_VERSION}]"
+
 
 # ─── OS Detection ───
 # shellcheck disable=SC2034
@@ -44,55 +52,45 @@ fi
 if [ "$IS_TERMUX" = true ]; then
     ROOT_DIR="$PREFIX"
     BIN_DIR="$PREFIX/bin"
+    HOME_DIRS="$HOME"
 else
     ROOT_DIR=""
-    [ -d "/usr/local/bin" ] && BIN_DIR="/usr/local/bin" || BIN_DIR="/usr/bin"
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        BIN_DIR="/usr/local/bin"
+    else
+        BIN_DIR="/usr/bin"
+    fi
+    HOME_DIRS="$(find /home -maxdepth 1 -mindepth 1 -type d 2>/dev/null) /root"
 fi
 
+CONF_DIR="${ROOT_DIR}/etc/myth"
+
+
+# ─── Pre-Installation Logic ───
 case "$1" in
-    # Debian: install | upgrade | RPM: 1 (install), 2 (upgrade)
-    install|upgrade|1|2)
-        # Pre-flight checks before tactical deployment
-        if [ "$1" = "upgrade" ] || [ "$1" = "2" ]; then
-            myth_log "Upgrading mission core components ($2)..."
-            
-            # Version comparison (Don't downgrade without a warning or block)
-            # This logic tries to determine if the new version is older than the current
-            if command -v myth >/dev/null 2>&1; then
-                OLD_VER=$(myth --version 2>/dev/null | head -1 | awk '{print $NF}' || echo "0.0.0")
-                NEW_VER="$2"
-                # If we're on Debian, use dpkg for precision
-                if command -v dpkg >/dev/null 2>&1; then
-                    if dpkg --compare-versions "$NEW_VER" lt "$OLD_VER" 2>/dev/null; then
-                        myth_log "Warning: Downgrade detected ($OLD_VER -> $NEW_VER). Proceeding with caution."
-                    fi
-                fi
-            fi
-
-            # Backup old binary 
-            if [ -f "$BIN_DIR/myth" ]; then
-                cp "$BIN_DIR/myth" "$BIN_DIR/myth.bak" 2>/dev/null || true
-            fi
-
-            # Backup existing configuration
-            if [ -f "/etc/myth/user.yaml" ]; then
-                cp "/etc/myth/user.yaml" "/etc/myth/user.yaml.bak" 2>/dev/null || true
-                myth_log "Preserved operational configuration at /etc/myth/user.yaml.bak"
-            fi
-        else
-            myth_log "Initiating first-time tactical deployment..."
+    install|upgrade|abort-upgrade)
+        myth_log "Verifying system readiness for mission start..."
+        
+        # Ensure config directory exists with tactical permissions
+        if [ ! -d "$CONF_DIR" ]; then
+            mkdir -p "$CONF_DIR"
+            chmod 755 "$CONF_DIR"
         fi
-        ;;
 
-    abort-upgrade)
-        ;;
+        # Log system information
+        myth_log "Target Architecture: $(uname -m)"
+        myth_log "Kernel Version: $(uname -r)"
 
+        # Check for mission-critical dependencies (Industry Grade)
+        for cmd in "curl" "grep" "tar"; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+                myth_log "⚠ Warning: Mission-critical tool '$cmd' not found. Package installation may proceed, but tool functionality will be degraded."
+            fi
+        done
+        ;;
     *)
-        echo "preinst called with unknown argument \`$1'" >&2
-        exit 1
+        myth_log "Maintainer script called with unknown argument: $1"
         ;;
 esac
-
-#DEBHELPER#
 
 exit 0

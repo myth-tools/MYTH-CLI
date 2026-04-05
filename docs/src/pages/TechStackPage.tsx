@@ -1,5 +1,5 @@
 import { PageHeader } from "../components/Layout";
-import { VERSION } from "../data/metadata";
+import { MYTH_VERSION } from "../data/metadata";
 
 const categories = [
 	{
@@ -253,7 +253,7 @@ export default function TechStackPage() {
 						{ label: "strip", value: "true (no debug)" },
 						{ label: "binary size", value: "~8MB" },
 						{ label: "target", value: "x86_64 / aarch64" },
-						{ label: "version", value: VERSION },
+						{ label: "version", value: MYTH_VERSION },
 					].map((m) => (
 						<div key={m.label} className="bg-white/5 rounded-lg p-3 border border-white/5">
 							<p className="text-[10px] text-cyber-dim uppercase font-bold tracking-wider mb-1">

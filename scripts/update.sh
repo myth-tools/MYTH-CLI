@@ -7,6 +7,22 @@
 # ═══════════════════════════════════════════════════════════
 set -euo pipefail
 
+# ─── Early Constants ───
+IS_TERMUX=false
+IS_PROOT=false
+IS_ALPINE=false
+
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    IS_TERMUX=true
+    if [ -d "/bin" ] && [ -d "/usr/lib" ] && [ ! -L "/bin" ]; then
+        IS_PROOT=true
+    fi
+fi
+if [ -f /etc/os-release ] && grep -q "ID=alpine" /etc/os-release; then
+    IS_ALPINE=true
+fi
+
+
 # ─── Visual Branding (Ultra-Premium Style) ───
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -37,6 +53,54 @@ mkdir -p "/var/log/myth" 2>/dev/null || UPDATE_LOG="${TMP_DIR}/myth-update.log"
 exec 3>&1 # Keep terminal stdout accessible via fd3
 # Strip ANSI codes for the physical log file
 exec > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >> "$UPDATE_LOG") 2>&1
+
+# ─── Elite Deployment Engine (Atomic & Sovereign) ───
+deploy_binary_atomic() {
+    local src_file="$1"
+    local dest_file="$2"
+    local dest_dir
+    dest_dir=$(dirname "$dest_file")
+    local backup_file="${dest_file}.old"
+    local temp_file="${dest_file}.new"
+
+    info "Executing Atomic Deployment..."
+    
+    if [ ! -w "$dest_dir" ]; then
+        err "Destination directory $dest_dir is not writable."
+    fi
+
+    # 1. Create a sibling temp file for atomic swap
+    cp "$src_file" "$temp_file" || err "Failed to stage binary at $temp_file"
+    chmod +x "$temp_file"
+
+    # 2. Sovereign Verification (Pre-Swap)
+    if ! "$temp_file" --version &>/dev/null; then
+        rm -f "$temp_file"
+        err "New binary verification failed. Aborted to prevent corruption."
+    fi
+
+    # 3. Create Fallback Point
+    if [ -f "$dest_file" ]; then
+        cp -f "$dest_file" "$backup_file" 2>/dev/null || true
+    fi
+
+    # 4. Atomic Swap
+    if mv -f "$temp_file" "$dest_file"; then
+        # 5. Final Smoke Test
+        if "$dest_file" --version &>/dev/null; then
+            ok "Atomic deployment successful: $(basename "$dest_file")"
+            return 0
+        else
+            warn "Final verification failed. Initiating Sovereign Rollback..."
+            [ -f "$backup_file" ] && mv -f "$backup_file" "$dest_file"
+            err "Deployment failed post-swap. Rollback completed."
+        fi
+    else
+        rm -f "$temp_file"
+        err "Atomic swap failed (Filesystem error)."
+    fi
+}
+
 
 # ─── 0. Signal Trapping & Cleanup ───
 CLEANUP_FILES=()
@@ -127,16 +191,26 @@ if [ "$CHECK_ONLY" = true ]; then
     exit 0
 fi
 
-# ─── 4. Secure Download & Verification ───
+# ─── 4. Secure Artifact Acquisition ───
 section "SECURE ARTIFACT ACQUISITION"
 ARCH=$(uname -m)
+STATIC_TARGET=""
 case "$ARCH" in
-    x86_64)  GH_BINARY="myth-x86_64-unknown-linux-gnu" ;;
-    aarch64) GH_BINARY="myth-aarch64-unknown-linux-gnu" ;;
-    armv7l)  GH_BINARY="myth-armv7-unknown-linux-gnueabihf" ;;
-    i*86)    GH_BINARY="myth-i686-unknown-linux-gnu" ;;
+    x86_64)  GH_BINARY="myth-x86_64-unknown-linux-gnu"; STATIC_TARGET="myth-musl-x64-static" ;;
+    aarch64) GH_BINARY="myth-aarch64-unknown-linux-gnu"; STATIC_TARGET="myth-musl-arm64-static" ;;
+    armv7l)  GH_BINARY="myth-armv7-unknown-linux-gnueabihf"; STATIC_TARGET="" ;;
+    i*86)    GH_BINARY="myth-i686-unknown-linux-gnu"; STATIC_TARGET="" ;;
     *)       err "Unsupported architecture for automated rolling update: $ARCH" ;;
 esac
+
+# Portability Optimization: Target static 'musl' binary for Termux/Alpine
+if [[ ( "$IS_TERMUX" = true && "$IS_PROOT" = false ) || "$IS_ALPINE" = true ]]; then
+    if [ -n "$STATIC_TARGET" ]; then
+        GH_BINARY="$STATIC_TARGET"
+        info "Portability optimization: Targeting static 'musl' binary."
+    fi
+fi
+
 
 TEMP_BINARY="${TMP_DIR}/myth-download-$$"
 CLEANUP_FILES+=("$TEMP_BINARY")
@@ -160,9 +234,13 @@ if curl -fsSL "${PAGES_URL}/SHA256SUMS" -o "$TEMP_SUMS" 2>/dev/null; then
         fi
         ok "Integrity verified."
     else
-        warn "Binary not found in manifest. Proceeding without cryptographic proof."
+        # Strict security audit: Require manifest inclusion
+        err "Security verification failure: Binary not found in official manifest ($GH_BINARY)."
     fi
+else
+    warn "Could not download integrity manifest from $PAGES_URL. Proceeding with ELF-only validation."
 fi
+
 
 # B. GPG Verification (Premium Security)
 if command -v gpg &>/dev/null && [ -f "$TEMP_SUMS.asc" ] 2>/dev/null; then
@@ -188,30 +266,22 @@ if command -v file &>/dev/null; then
     esac
 fi
 
-# ─── 5. Atomic Swap & Rollback Mechanism ───
-section "ATOMIC DEPLOYMENT"
-BIN_BACKUP="${BIN_PATH}.old"
-CLEANUP_FILES+=("$BIN_BACKUP")
+# ─── 5. Atomic Deploy & Sovereignty ───
+section "ATOMIC DEPLOIMENT"
+deploy_binary_atomic "$TEMP_BINARY" "$BIN_PATH"
 
-info "Backing up current core..."
-cp "$BIN_PATH" "$BIN_BACKUP"
-
-info "Performing atomic swap..."
-chmod +x "$TEMP_BINARY"
-mv -f "$TEMP_BINARY" "$BIN_PATH"
-
-info "Executing post-deployment smoke test..."
-if ! "$BIN_PATH" --version >/dev/null 2>&1; then
-    warn "New version failed execution test. Initiating tactical rollback..."
-    mv -f "$BIN_BACKUP" "$BIN_PATH"
-    err "New binary failed to run. Rollback complete."
+# ─── 6. Final Health Check ───
+section "POST-UPDATE HEALTH CHECK"
+if myth check --quick 2>/dev/null; then
+    ok "Neural core healthy and mission-ready."
+else
+    warn "Post-update health check identified potential drift. Run 'myth check' for full audit."
 fi
 
-# Remove backup on success
-rm -f "$BIN_BACKUP"
 ok "Rolling update successful. MYTH upgraded to v$LATEST_VERSION."
 
 section "MISSION SUCCESS"
 ok "System version: v$LATEST_VERSION"
 info "Neural conduits stabilized at $BIN_PATH"
 echo ""
+

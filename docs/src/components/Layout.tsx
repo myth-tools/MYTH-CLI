@@ -23,7 +23,7 @@ import {
 	sidebarNav,
 	toolBridges,
 } from "../data/content";
-import { NAME, REPOSITORY_URL, VERSION } from "../data/metadata";
+import { MYTH_NAME, MYTH_VERSION, REPOSITORY_URL } from "../data/metadata";
 
 // Site-wide Highlight Component
 export const HighlightText = ({ text, highlight }: { text: string; highlight: string }) => {
@@ -117,9 +117,10 @@ export function Sidebar({ mobile, onClose }: { mobile?: boolean; onClose?: () =>
 						</svg>
 					</div>
 					<div className="flex flex-col">
-						<span className="text-2xl glow-text-premium">{NAME}</span>
+						<span className="text-2xl glow-text-premium">{MYTH_NAME}</span>
+
 						<span className="text-[9px] mt-0.5 text-cyber-secondary/50 font-mono tracking-[0.3em] uppercase">
-							Tactical Intelligence v{VERSION}
+							Tactical Intelligence v{MYTH_VERSION}
 						</span>
 					</div>
 				</Link>

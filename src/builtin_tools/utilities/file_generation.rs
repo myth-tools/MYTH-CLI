@@ -1169,7 +1169,8 @@ impl FileGenerator {
         let content = match format {
             "json" => json!({
                 "meta": {
-                    "version": "1.0.0",
+                    "version": env!("CARGO_PKG_VERSION"),
+
                     "origin": "MYTH_CLI_Sovereign",
                     "mission_id": uuid,
                     "generated_at": timestamp
@@ -1180,7 +1181,8 @@ impl FileGenerator {
                     "payload_hash": format_args!("{:x}", Sha256::digest(uuid.as_bytes())).to_string()
                 }
             }).to_string(),
-            "yaml" | "yml" => format!("meta:\n  version: 1.0.0\n  mission_id: {}\ngenerated:\n  filename: {}\n  timestamp: {}\n", uuid, filename, timestamp),
+            "yaml" | "yml" => format!("meta:\n  version: {}\n  mission_id: {}\ngenerated:\n  filename: {}\n  timestamp: {}\n", env!("CARGO_PKG_VERSION"), uuid, filename, timestamp),
+
             "rs" => format!(
 r#"//! Generated Rust mission asset.
 //! ID: {uuid}

@@ -14,6 +14,9 @@ set -euo pipefail
 
 # ─── Early Constants ───
 IS_TERMUX=false
+IS_PROOT=false
+IS_ALPINE=false
+
 REAL_USER="${SUDO_USER:-${USER:-root}}"
 # Secure home directory resolution (avoiding eval echo)
 REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6 || echo "${HOME:-/root}")
@@ -29,13 +32,15 @@ PAGES_URL="__PAGES_URL__"
 AGENT_NAME="__AGENT_NAME__"
 
 # Priority: 1. Environment Variable, 2. CI/CD Injected, 3. Local Discovery
-VERSION="${VERSION:-$RELEASE_VERSION}"
+MYTH_VERSION="${MYTH_VERSION:-$RELEASE_VERSION}"
 
 # Fallback for local execution (if placeholders were not replaced)
-if [[ "$VERSION" == "__"*"__" ]]; then
+if [[ "$MYTH_VERSION" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
         AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E "s/.*name:[[:space:]]*[\"'\":]*([^\"']+)[\"'\":]*.*/\1/" | awk '{print $1}')
-        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+        # Standardized Extraction: Targets the top-level version field from Cargo.toml
+        MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
         REPO_URL=$(grep "repository_url:" config/agent.yaml | head -n 1 | sed -E "s/.*repository_url:[[:space:]]*[\"'\"]?([^\"']+)[\"'\"]?.*/\1/")
         PAGES_DOMAIN=$(echo "$REPO_URL" | sed -E 's|https?://github.com/([^/]+)/([^/]+).*|\1.github.io/\2|')
         PAGES_URL="https://$PAGES_DOMAIN"
@@ -94,7 +99,6 @@ HUD_TERM_SUPPORT=false
 HUD_CPU_FACTOR=1.0
 HUD_NET_FACTOR=1.0
 HUD_TICKER_PID=""
-# HUD_TICKER_PID=""
 
 # Terminal Fidelity Discovery
 if command -v tput &>/dev/null && [ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]; then
@@ -144,6 +148,58 @@ get_time_multiplier() {
     esac
     echo "$arch_factor * $HUD_CPU_FACTOR * $HUD_NET_FACTOR" | awk '{print $1 * $2 * $3}'
 }
+
+# ─── Elite Deployment Engine (Atomic & Sovereign) ───
+deploy_binary_atomic() {
+    local src_file="$1"
+    local dest_file="$2"
+    local dest_dir
+    dest_dir=$(dirname "$dest_file")
+    local backup_file="${dest_file}.old"
+    local temp_file="${dest_file}.new"
+
+    # Early Writability Audit
+    if [ ! -w "$dest_dir" ]; then
+        step_fail "Destination directory $dest_dir is not writable. Check permissions."
+    fi
+
+    step_start "Executing Atomic Deployment" "5"
+
+    
+    # 1. Create a sibling temp file for atomic swap
+    if ! cp "$src_file" "$temp_file" 2>&1 | tee -a "$LOG_FILE"; then
+        step_fail "Failed to stage binary at $temp_file"
+    fi
+    chmod +x "$temp_file"
+
+    # 2. Sovereign Verification (Pre-Swap)
+    if ! "$temp_file" --version &>/dev/null; then
+        rm -f "$temp_file"
+        step_fail "Binary verification failed (Execution test). Aborted to prevent corruption."
+    fi
+
+    # 3. Create Fallback Point
+    if [ -f "$dest_file" ]; then
+        cp -f "$dest_file" "$backup_file" 2>/dev/null || true
+    fi
+
+    # 4. Atomic Swap (Rename is atomic on same filesystem)
+    if mv -f "$temp_file" "$dest_file"; then
+        # 5. Final Smoke Test
+        if "$dest_file" --version &>/dev/null; then
+            step_done "Atomic deployment successful: $(basename "$dest_file")"
+            return 0
+        else
+            warn "Final verification failed. Initiating Sovereign Rollback..."
+            [ -f "$backup_file" ] && mv -f "$backup_file" "$dest_file"
+            step_fail "Deployment failed post-swap. Rollback completed."
+        fi
+    else
+        rm -f "$temp_file"
+        step_fail "Atomic swap failed (Filesystem error)."
+    fi
+}
+
 
 # ─── Elite HUD v3.0: Concurrent Ticker & Throughput Engine ───
 
@@ -348,20 +404,37 @@ step_fail() {
     exit 1
 }
 
+# Industry Grade: Non-fatal failure (allows mission fallback)
+step_warn() {
+    local warn_msg="${1:-$HUD_ACTIVE_STEP encountered a non-fatal error.}"
+    if [ "$HUD_TERM_SUPPORT" = true ]; then
+        if [ -n "$HUD_TICKER_PID" ]; then kill -9 "$HUD_TICKER_PID" 2>/dev/null || true; fi
+        echo -ne "\n\033[K\033[1A" >&3
+        echo -e "\033[K\033[1A\r ${YELLOW}[ WARN ]${NC} ${warn_msg}" >&3
+    else
+        echo -e " ${YELLOW}[ WARN ]${NC} ${warn_msg}" >&3
+    fi
+    HUD_ACTIVE_STEP=""
+}
+
+
 cleanup() {
     local exit_code=$?
-    # Ensure any background tickers are reaped on exit
-    if [ -n "$HUD_TICKER_PID" ]; then kill -9 "$HUD_TICKER_PID" 2>/dev/null || true; fi
-    if [ -n "$HUD_ACTIVE_STEP" ]; then
+    if [ -n "${HUD_TICKER_PID:-}" ]; then kill -9 "$HUD_TICKER_PID" 2>/dev/null || true; fi
+    if [ -n "${HUD_ACTIVE_STEP:-}" ]; then
         echo -e "\033[0m" >&3
     fi
     if [ $exit_code -ne 0 ] && [ $exit_code -ne 130 ]; then
         echo -e "\n${RED}✘  [CRITICAL] Installation aborted unexpectedly.${NC}" >&3
-        echo -e "${YELLOW}⠿  Technical logs preserved at: $LOG_FILE${NC}" >&3
+        echo -e "${YELLOW}⠿  Technical logs preserved at: ${LOG_FILE:-unknown}${NC}" >&3
     fi
     jobs -p 2>/dev/null | xargs kill -9 2>/dev/null || true
-    rm -rf "$BUILD_DIR" 2>/dev/null || true
+    # Global Asset Sanitization: Only if path is sane
+    if [ -n "${BUILD_DIR:-}" ] && [ "$BUILD_DIR" != "/" ] && [ "$BUILD_DIR" != "." ]; then
+        rm -rf "$BUILD_DIR" 2>/dev/null || true
+    fi
     exit $exit_code
+
 }
 trap cleanup EXIT INT TERM
 
@@ -387,7 +460,7 @@ INSTALL_BROWSER=true
 # shellcheck disable=SC2034
 for arg in "$@"; do
     case "$arg" in
-        --version) echo "MYTH Installer v$VERSION"; exit 0 ;;
+        --version) echo "MYTH Installer v$MYTH_VERSION"; exit 0 ;;
         --force) FORCE_INSTALL=true ;;
         --no-deps) INSTALL_DEPS=false ;;
         --no-browser) INSTALL_BROWSER=false ;;
@@ -428,7 +501,19 @@ detect_virtualization() {
         "Unknown")    AUDIT_CONTEXT="Linux Physical/HVM" ;;
         *)            AUDIT_CONTEXT="$hv" ;;
     esac
+
+    # Proot Detection (Termux virtualization)
+    if [ "$IS_TERMUX" = true ]; then
+        if [ -d "/bin" ] && [ -d "/usr/lib" ] && [ ! -L "/bin" ]; then
+            IS_PROOT=true
+            AUDIT_CONTEXT="Proot (Emulated Linux)"
+        else
+            IS_PROOT=false
+            AUDIT_CONTEXT="Direct Termux (Android Native)"
+        fi
+    fi
 }
+
 
 gather_hardware_specs() {
     # CPU Model & Core Count
@@ -460,7 +545,7 @@ calibrate_network
 # ─── Start ───
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}" >&3
 echo -e "${CYAN}  [ ${AGENT_NAME} — DIGITAL RECONNAISSANCE & TACTICAL AI ]${NC}" >&3
-echo -e "  ${BOLD}Version: ${VERSION}${NC}\n" >&3
+echo -e "  ${BOLD}Version: ${MYTH_VERSION}${NC}\n" >&3
 info "Logs: $LOG_FILE"
 
 section "TACTICAL SYSTEM AUDIT"
@@ -499,7 +584,9 @@ elif [ -f /etc/os-release ]; then
         alpine)
             DISTRO_FAMILY="alpine"
             PKG_MANAGER="apk"
+            IS_ALPINE=true
             ;;
+
         opensuse*|sles)
             DISTRO_FAMILY="fedora"
             PKG_MANAGER="zypper"
@@ -517,7 +604,7 @@ elif [ -f /etc/os-release ]; then
             fi
             ;;
     esac
-    if [ "$IS_TERMUX" = true ]; then
+    if [ "$IS_TERMUX" = true ] && [ "$IS_PROOT" = false ]; then
         ROOT_DIR="$PREFIX"
         BIN_DIR="$PREFIX/bin"
     else
@@ -525,6 +612,7 @@ elif [ -f /etc/os-release ]; then
         BIN_DIR="/usr/bin"
         [ -d "/usr/local/bin" ] && BIN_DIR="/usr/local/bin"
     fi
+
     APT_SOURCES_DIR="${ROOT_DIR}/etc/apt/sources.list.d"
     APT_KEYRINGS_DIR="${ROOT_DIR}/etc/apt/keyrings"
     [ ! -d "$APT_KEYRINGS_DIR" ] && APT_KEYRINGS_DIR="${ROOT_DIR}/etc/apt/trusted.gpg.d"
@@ -567,11 +655,21 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 ARCH=$(uname -m)
 case "$ARCH" in
-    x86_64)  RUST_TARGET="x86_64-unknown-linux-gnu" ;;
-    aarch64) RUST_TARGET="aarch64-unknown-linux-gnu" ;;
-    armv7l)  RUST_TARGET="armv7-unknown-linux-gnueabihf" ;;
-    *)       RUST_TARGET="" ;;
+    x86_64)  
+        RUST_TARGET="x86_64-unknown-linux-gnu" 
+        STATIC_TARGET="myth-musl-x64-static"
+        ;;
+    aarch64) 
+        RUST_TARGET="aarch64-unknown-linux-gnu" 
+        STATIC_TARGET="myth-musl-arm64-static"
+        ;;
+    armv7l)  
+        RUST_TARGET="armv7-unknown-linux-gnueabihf" 
+        STATIC_TARGET=""
+        ;;
+    *)       RUST_TARGET=""; STATIC_TARGET="" ;;
 esac
+
 step_done "Environment Detection complete: ${PRETTY_NAME:-$ID} ($ARCH)"
 
 # ─── System Audit ───
@@ -621,17 +719,17 @@ install_deps_debian() {
 
     # Recommended recon tools for non-Kali
     if ! grep -qi "kali" /etc/os-release 2>/dev/null; then
-        RECOMMENDED_TOOLS="nmap whois curl dnsutils"
-        TO_INSTALL=""
-        for tool in $RECOMMENDED_TOOLS; do
+        RECOMMENDED_TOOLS=("nmap" "whois" "curl" "dnsutils")
+        TO_INSTALL=()
+        for tool in "${RECOMMENDED_TOOLS[@]}"; do
             if ! command -v "$tool" &>/dev/null; then
                 if [ "$tool" = "dnsutils" ] && command -v dig &>/dev/null; then continue; fi
-                TO_INSTALL="$TO_INSTALL $tool"
+                TO_INSTALL+=("$tool")
             fi
         done
-        if [ -n "$TO_INSTALL" ]; then
-            info "Installing recon dependencies:$TO_INSTALL..."
-            apt-get install -y -qq "$TO_INSTALL" 2>/dev/null || warn "Some tools failed."
+        if [ "${#TO_INSTALL[@]}" -gt 0 ]; then
+            info "Installing recon dependencies: ${TO_INSTALL[*]}..."
+            apt-get install -y -qq "${TO_INSTALL[@]}" 2>/dev/null || warn "Some tools failed."
             ok "Recon tools installed."
         fi
     fi
@@ -639,8 +737,10 @@ install_deps_debian() {
 
 install_deps_fedora() {
     step_start "Synchronizing Fedora Environment" "$TIME_DNF_DEPS"
-    $PKG_MANAGER install -y -q curl git wget nmap whois openssl ca-certificates bubblewrap zstd bind-utils 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
+    FEDORA_DEPS=("curl" "git" "wget" "nmap" "whois" "openssl" "ca-certificates" "bubblewrap" "zstd" "bind-utils")
+    $PKG_MANAGER install -y -q "${FEDORA_DEPS[@]}" 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
     step_done "Fedora environment locked."
+
 
     if [ -c /dev/tty ]; then
         echo -en "${CYAN}⠿  Install Anonymity Infrastructure (Tor Engine)? [y/N]: ${NC}" >&3
@@ -658,8 +758,10 @@ install_deps_fedora() {
 
 install_deps_arch() {
     step_start "Synchronizing Arch Environment" "$TIME_PACMAN_DEPS"
-    pacman -Sy --noconfirm --needed curl git wget nmap whois openssl ca-certificates bubblewrap zstd bind-tools 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
+    ARCH_DEPS=("curl" "git" "wget" "nmap" "whois" "openssl" "ca-certificates" "bubblewrap" "zstd" "bind-tools")
+    pacman -Sy --noconfirm --needed "${ARCH_DEPS[@]}" 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
     step_done "Arch environment locked."
+
 
     if [ -c /dev/tty ]; then
         echo -en "${CYAN}⠿  Install Anonymity Infrastructure (Tor Engine)? [y/N]: ${NC}" >&3
@@ -678,15 +780,18 @@ install_deps_arch() {
 install_deps_termux() {
     step_start "Synchronizing Termux Environment" "$TIME_TERMUX_DEPS"
     pkg update -y 2>&1 | tail -3 >&3 || true
-    pkg install -y curl git wget nmap openssl ca-certificates zstd 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
+    TERMUX_DEPS=("curl" "git" "wget" "nmap" "openssl" "ca-certificates" "zstd")
+    pkg install -y "${TERMUX_DEPS[@]}" 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
     step_done "Termux environment locked."
 }
 
 install_deps_alpine() {
     step_start "Synchronizing Alpine Environment" "$TIME_PACMAN_DEPS"
-    apk add --no-cache curl git wget nmap openssl ca-certificates bubblewrap zstd 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
+    ALPINE_DEPS=("curl" "git" "wget" "nmap" "openssl" "ca-certificates" "bubblewrap" "zstd")
+    apk add --no-cache "${ALPINE_DEPS[@]}" 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3 || warn "Some packages failed."
     step_done "Alpine environment locked."
 }
+
 
 # Execute OS-specific dependency installation
 if [ "$INSTALL_DEPS" = true ]; then
@@ -760,10 +865,8 @@ install_via_apt() {
             step_done "Index synchronized."
 
             INSTALL_TARGET="myth"
-            if [ "$VERSION" != "__VERSION__" ]; then
-                INSTALL_TARGET="myth=$VERSION"
-                info "Targeting specific version: $VERSION"
-            fi
+            # Never pin by specific version for APT because standard native packages use revisions (e.g. 0.1.0-1).
+            # The 'myth' package inherently fetches the latest stable artifact matching this repository.
 
             step_start "Deploying MYTH via APT" "$TIME_APT_DEPS"
             if apt-get install -y "$INSTALL_TARGET" 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3; then
@@ -772,69 +875,30 @@ install_via_apt() {
                 ok "Future updates: ${BOLD}sudo apt update && sudo apt upgrade myth${NC}"
                 return 0
             fi
-            step_fail "APT deployment failed."
+            step_warn "APT deployment failed. Investigating Path B (Binary fallback)..."
         fi
         rm -f "$APT_SOURCES_DIR/myth.list"
     fi
     return 1
 }
 
+
 # ─────────────────────────────────────────
 #  A2: TERMUX (Android — pkg/apt)
 # ─────────────────────────────────────────
 install_via_termux() {
-    info "Attempting deployment via Termux pkg..."
-
-    # Termux uses apt internally but with $PREFIX paths
-    TERMUX_SOURCES_DIR="$PREFIX/etc/apt/sources.list.d"
-    TERMUX_KEYRINGS_DIR="$PREFIX/etc/apt/trusted.gpg.d"
-    mkdir -p "$TERMUX_SOURCES_DIR" "$TERMUX_KEYRINGS_DIR"
-
-    # 1. Import GPG key
-    step_start "Retrieving signing authority for Termux" "$TIME_CONFIG_SETUP"
-    if curl -fsSL "${PAGES_URL}/myth.gpg" -o "${TMP_DIR}/myth-key.gpg" 2>/dev/null && [ -s "${TMP_DIR}/myth-key.gpg" ]; then
-        if head -c 20 "${TMP_DIR}/myth-key.gpg" | grep -q "BEGIN"; then
-            gpg --dearmor --yes -o "$TERMUX_KEYRINGS_DIR/myth.gpg" "${TMP_DIR}/myth-key.gpg" 2>/dev/null
-        else
-            cp "${TMP_DIR}/myth-key.gpg" "$TERMUX_KEYRINGS_DIR/myth.gpg"
-        fi
-        rm -f "${TMP_DIR}/myth-key.gpg"
-
-        if [ -s "$TERMUX_KEYRINGS_DIR/myth.gpg" ]; then
-            step_done "Signing authority installed for Termux."
-        else
-            step_fail "GPG key setup failed."
-        fi
-    else
-        step_fail "Could not download signing key."
+    # Decision: Direct Termux vs Proot
+    if [ "$IS_PROOT" = true ]; then
+        info "Deployment Environment: Proot (Standard Linux Subsystem)"
+        # Delegate to standard APT deployment (Glibc compatible)
+        return 1 
     fi
 
-    # 2. Add Termux-compatible APT source
-    step_start "Configuring Termux package source" "$TIME_CONFIG_SETUP"
-    echo "deb [signed-by=${TERMUX_KEYRINGS_DIR}/myth.gpg] ${PAGES_URL} stable main" > "$TERMUX_SOURCES_DIR/myth.list"
-    step_done "Termux source configured."
-
-    # 3. Update and install
-    step_start "Synchronizing Termux package index" "$TIME_TERMUX_DEPS"
-    if apt-get update -o Dir::Etc::sourcelist="$TERMUX_SOURCES_DIR/myth.list" \
-        -o Dir::Etc::sourceparts="-" \
-        -o APT::Get::List-Cleanup="0" -qq 2>&1 | tee -a "$LOG_FILE"; then
-        step_done "Termux index synchronized."
-
-        step_start "Deploying MYTH via Termux pkg" "$TIME_TERMUX_DEPS"
-        if apt-get install -y myth 2>&1 | tee -a "$LOG_FILE" | tail -3 >&3; then
-            PKG_SUCCESS=true
-            step_done "MYTH deployed via Termux pkg."
-            ok "Future updates: ${BOLD}pkg upgrade myth${NC}"
-            return 0
-        fi
-    fi
-
-    # If APT repo didn't work (arch mismatch, etc.), fall back to direct binary
-    warn "Termux APT install failed. Falling back to direct binary deployment..."
-    rm -f "$TERMUX_SOURCES_DIR/myth.list"
-    return 1
+    info "Deployment Environment: Direct Termux (Android Native)"
+    warn "Standard debs are incompatible with Android/Bionic. Proceeding with static binary..."
+    return 1 # Fallback to Path B (Binary) with STATIC_TARGET priority
 }
+
 
 # ─────────────────────────────────────────
 #  A3: FEDORA / RHEL / CentOS (DNF/YUM)
@@ -874,8 +938,10 @@ REPOEOF
         return 0
     fi
     rm -f "$YUM_REPOS_DIR/myth.repo"
-    step_fail "$PKG_MANAGER deployment failed."
+    step_warn "$PKG_MANAGER deployment failed. Investigating Path B (Binary fallback)..."
+    return 1
 }
+
 
 # ─────────────────────────────────────────
 #  A4: ARCH / MANJARO (Pacman + AUR)
@@ -944,8 +1010,10 @@ ARCHEOF
     fi
     # Remove custom repo entry if install failed
     sed -i '/\[myth\]/,+2d' "$PACMAN_CONF" 2>/dev/null || true
-    step_fail "Pacman deployment failed."
+    step_warn "Pacman deployment failed. Investigating Path B (Binary fallback)..."
+    return 1
 }
+
 
 # ─────────────────────────────────────────
 #  A5: ALPINE LINUX (APK)
@@ -988,13 +1056,25 @@ if [ "$PKG_SUCCESS" = false ]; then
     info "Attempting direct binary download from GitHub Releases..."
 
     # Map system arch to GitHub release asset names
-    case "$ARCH" in
-        x86_64)  GH_BINARY_NAME="myth-x86_64-unknown-linux-gnu" ;;
-        aarch64) GH_BINARY_NAME="myth-aarch64-unknown-linux-gnu" ;;
-        armv7l)  GH_BINARY_NAME="myth-armv7-unknown-linux-gnueabihf" ;;
-        i386|i686) GH_BINARY_NAME="myth-i686-unknown-linux-gnu" ;;
-        *)       GH_BINARY_NAME="" ;;
-    esac
+    # Special: Prioritize STATIC binary for Termux and Alpine
+    if [[ ( "$IS_TERMUX" = true && "$IS_PROOT" = false ) || "$IS_ALPINE" = true ]]; then
+        if [ -n "$STATIC_TARGET" ]; then
+            GH_BINARY_NAME="$STATIC_TARGET"
+            info "Portability optimization: Targeting static 'musl' binary."
+        fi
+    fi
+
+
+    if [ -z "${GH_BINARY_NAME:-}" ]; then
+        case "$ARCH" in
+            x86_64)  GH_BINARY_NAME="myth-x86_64-unknown-linux-gnu" ;;
+            aarch64) GH_BINARY_NAME="myth-aarch64-unknown-linux-gnu" ;;
+            armv7l)  GH_BINARY_NAME="myth-armv7-unknown-linux-gnueabihf" ;;
+            i386|i686) GH_BINARY_NAME="myth-i686-unknown-linux-gnu" ;;
+            *)       GH_BINARY_NAME="" ;;
+        esac
+    fi
+
 
     if [ -z "$GH_BINARY_NAME" ]; then
         warn "No pre-built binary available for $ARCH. Will compile from source."
@@ -1046,11 +1126,13 @@ if [ "$PKG_SUCCESS" = false ]; then
                         fi
                         step_done "Integrity verified: $ACTUAL_SHA"
                     else
-                        step_done "Binary integrity unverified (matching manifest entry missing)."
+                        # Strict mode: If manifest exists but binary isn't in it, it's a security risk
+                        step_fail "Binary integrity failure: Target $GH_BINARY_NAME not found in official manifest."
                     fi
                 else
-                    warn "Could not download integrity manifest from $PAGES_URL. Falling back to ELF validation."
+                    warn "Could not download integrity manifest from $PAGES_URL. Proceeding with ELF-only validation."
                 fi
+
                 rm -f "$TEMP_SUMS" 2>/dev/null || true
 
                 chmod +x "$TEMP_BINARY"
@@ -1063,14 +1145,17 @@ if [ "$PKG_SUCCESS" = false ]; then
                 fi
                 
                 if [ "$VALID" = true ]; then
-                    mv "$TEMP_BINARY" "$BIN_DIR/myth"
-                    if [ "$IS_TERMUX" = false ]; then
-                        ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent" 2>/dev/null || true
-                        ln -sf "$BIN_DIR/myth" "$BIN_DIR/chief" 2>/dev/null || true
+                    if deploy_binary_atomic "$TEMP_BINARY" "$BIN_DIR/myth"; then
+                        if [ "$IS_TERMUX" = false ]; then
+                            ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent" 2>/dev/null || true
+                            ln -sf "$BIN_DIR/myth" "$BIN_DIR/chief" 2>/dev/null || true
+                        fi
+                        BINARY_SUCCESS=true
+                    else
+                        warn "Atomic deployment failed. Falling back to source."
                     fi
-                    BINARY_SUCCESS=true
-                    ok "Pre-built binary deployed: $BIN_DIR/myth"
                 else
+
                     warn "Downloaded binary failed security integrity audit. Falling back to source."
                     rm -f "$TEMP_BINARY"
                 fi
@@ -1150,14 +1235,17 @@ if [ "$PKG_SUCCESS" = false ] && [ "$BINARY_SUCCESS" = false ]; then
     fi
 
     step_done "Neural Core Compilation Complete."
-    step_start "Deploying Binaries" "$TIME_CONFIG_SETUP"
-    cp target/release/myth "$BIN_DIR/myth"
-    if [ "$IS_TERMUX" = false ]; then
-        ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent"
-        ln -sf "$BIN_DIR/myth" "$BIN_DIR/chief"
+    step_done "Neural Core Compilation Complete."
+    if deploy_binary_atomic "target/release/myth" "$BIN_DIR/myth"; then
+        if [ "$IS_TERMUX" = false ]; then
+            ln -sf "$BIN_DIR/myth" "$BIN_DIR/agent" 2>/dev/null || true
+            ln -sf "$BIN_DIR/myth" "$BIN_DIR/chief" 2>/dev/null || true
+        fi
+    else
+        err "Failed to deploy compiled binary."
     fi
-    step_done "Binaries deployed to $BIN_DIR/"
 fi
+
 
 
 # ═══════════════════════════════════════════════════════════
@@ -1369,6 +1457,12 @@ fi
 
 audit "${CYAN}Arsenal Preparation:${NC} Run 'myth sync' to download the 3000+ tool definitions."
 
+# ─── Post-Mission Health Check ───
+if command -v myth &>/dev/null; then
+    echo -e "\n${CYAN}⠿  Initiating Autonomous Health Check...${NC}" >&3
+    myth check --quick 2>/dev/null || true
+fi
+
 echo -e "\n  ${BOLD}TACTICAL NEXT STEPS:${NC}" >&3
 echo -e "    1. ${CYAN}myth sync${NC}           - Synchronize mission tools & metadata" >&3
 echo -e "    2. ${CYAN}myth check${NC}          - Operational environment audit" >&3
@@ -1377,6 +1471,7 @@ echo -e "    3. ${CYAN}myth scan <target>${NC}    - Initiate autonomous reconnai
 echo -e "\n  ${BOLD}TACTICAL NEXUS (Full Docs):${NC}" >&3
 echo -e "    ${PAGES_URL} (Check /installation and /quickstart)" >&3
 echo -e "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&3
+
 
 # Record installation metric (local)
 date +%s > "${CONFIG_DIR}/.installed_at" 2>/dev/null || true

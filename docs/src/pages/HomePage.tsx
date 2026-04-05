@@ -15,7 +15,7 @@ import {
 import { Link } from "react-router-dom";
 import { CopyButton } from "../components/CopyButton";
 import SystemGraph from "../components/SystemGraph";
-import { NAME, VERSION } from "../data/metadata";
+import { MYTH_NAME, MYTH_VERSION } from "../data/metadata";
 
 const features = [
 	{
@@ -201,21 +201,23 @@ export default function HomePage() {
 						className="inline-flex items-center gap-2 px-3 py-1 mb-8 rounded-full bg-cyber-primary/10 border border-cyber-primary/20 text-[10px] text-cyber-primary font-bold uppercase tracking-[0.2em]"
 					>
 						<ActivityIcon className="w-3 h-3 animate-pulse" /> SYSTEM STATUS: OPERATIONAL V
-						{VERSION.toUpperCase()}
+						{MYTH_VERSION.toUpperCase()}
 					</motion.div>
 
 					<motion.h1
 						variants={itemVariants}
 						className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tighter relative group"
 					>
-						<span className="relative z-10">{NAME}</span>
+						<span className="relative z-10">{MYTH_NAME}</span>
+
 						<motion.span
 							animate={{ opacity: [0, 0.6, 0] }}
 							transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
 							className="absolute inset-0 text-cyber-primary/20 blur-2xl opacity-0"
 						>
-							{NAME}
+							{MYTH_NAME}
 						</motion.span>
+
 						<span className="text-cyber-primary text-4xl md:text-6xl align-top ml-2 animate-pulse opacity-70">
 							-
 						</span>
@@ -459,7 +461,7 @@ export default function HomePage() {
 
 			<footer className="px-6 py-12 border-t border-cyber-border/30 text-center bg-black/40">
 				<p className="text-[10px] font-mono text-cyber-dim uppercase tracking-widest mb-4">
-					Licensed under MIT — Neural Core v{VERSION}
+					Licensed under MIT — Neural Core v{MYTH_VERSION}
 				</p>
 				<p className="text-[10px] text-cyber-accent/80 font-bold uppercase tracking-widest">
 					⚠️ Authorization Required: Never scan targets without written permission.

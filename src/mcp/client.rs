@@ -651,7 +651,8 @@ impl McpClient for SseMcpClient {
             "initialize",
             serde_json::json!({
                 "protocolVersion": "2024-11-05", "capabilities": {},
-                "clientInfo": { "name": "myth", "version": "0.1.0" }
+                "clientInfo": { "name": "myth", "version": env!("CARGO_PKG_VERSION") }
+
             }),
         )
         .await?;
@@ -1053,7 +1054,8 @@ impl McpClient for StdioMcpClient {
             "initialize",
             serde_json::json!({
                 "protocolVersion": "2024-11-05", "capabilities": {},
-                "clientInfo": { "name": "myth", "version": "0.1.0" }
+                "clientInfo": { "name": "myth", "version": env!("CARGO_PKG_VERSION") }
+
             }),
         )
         .await?;

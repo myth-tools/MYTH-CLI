@@ -2383,10 +2383,11 @@ mod tests {
     use std::collections::VecDeque;
 
     async fn setup_test_context() -> (ReconAgent, VecDeque<String>) {
-        let yaml = r#"
+        let yaml = format!(
+            r#"
 agent:
   name: "MYTH-TEST"
-  version: "1.0.0"
+  version: "{}"
   author: "test"
   repository_url: "http"
   max_iterations: 10
@@ -2410,8 +2411,9 @@ creator:
   clearance_level: "OPERATIVE-LEVEL-4"
   system_license: "MYTH-PRO-UNLIMITED-2026"
 mcp:
-  mcp_servers: {}
+  mcp_servers: {{}}
   tool_paths: []
+
   blocked_commands: []
   max_output_bytes: 1000
 sandbox:
@@ -2486,9 +2488,13 @@ profiles:
     mode: "user"
     tools: []
     max_iterations: 10
-"#;
+"#,
+            env!("CARGO_PKG_VERSION")
+        );
+
         let mut config: AppConfig =
-            serde_yaml::from_str(yaml).expect("Default config should be valid");
+            serde_yaml::from_str(&yaml).expect("Default config should be valid");
+
         // Merge factory defaults for tests
         for (name, srv) in crate::builtin_mcp::get_factory_defaults() {
             config.mcp.mcp_servers.insert(name, srv);

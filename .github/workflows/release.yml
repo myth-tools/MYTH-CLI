@@ -207,12 +207,12 @@ jobs:
         run: |
           REPO_URL="$VITE_REPO_URL"
           PAGES_URL="$VITE_PAGES_URL"
-          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
-          [ -z "$VERSION" ] && { echo "::error::Could not parse VERSION from Cargo.toml"; exit 1; }
+          MYTH_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          [ -z "$MYTH_VERSION" ] && { echo "::error::Could not parse VERSION from Cargo.toml"; exit 1; }
 
           # Inject URLs into distribution scripts
           # Use '@' as delimiter to safely handle URLs containing '/'
-          sed -i "s@__REPO_URL__@${REPO_URL}@g;s@__PAGES_URL__@${PAGES_URL}@g;s@__VERSION__@${VERSION}@g;s@__AGENT_NAME__@MYTH@g" \
+          sed -i "s@__REPO_URL__@${REPO_URL}@g;s@__PAGES_URL__@${PAGES_URL}@g;s@__VERSION__@${MYTH_VERSION}@g;s@__AGENT_NAME__@MYTH@g" \
             scripts/install.sh scripts/bootstrap.sh scripts/uninstall.sh
 
           # Setup aptly structure (idempotent — skip creation if repo already exists)

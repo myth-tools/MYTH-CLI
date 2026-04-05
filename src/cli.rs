@@ -15,7 +15,8 @@ use crate::ui;
 #[derive(Parser, Debug)]
 #[command(
     name = "myth",
-    version = "0.1.0",
+    version = env!("CARGO_PKG_VERSION"),
+
     about = "⚡ MYTH — AI-Powered Reconnaissance Agent for Kali Linux",
     long_about = "An ultra-fast, sandboxed, volatile CLI agent that leverages \
                   3000+ Kali security tools via MCP, powered by NVIDIA NIM and Rig.rs.\n\n\

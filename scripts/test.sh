@@ -66,8 +66,8 @@ ok "Formatting is clean"
 # ─── Script Linting (shellcheck) ───
 info "Linting shell scripts with shellcheck..."
 if command -v shellcheck &>/dev/null; then
-    # Exclude postinst/postrm/etc that lack .sh extension but are still run
-    shellcheck scripts/*.sh scripts/postinst scripts/postrm scripts/preinst scripts/prerm || warn "Shellcheck found warnings in scripts."
+    # Industry Grade: Dynamically find and audit all bash scripts and maintainer hooks
+    find scripts package_runners -type f \( -name "*.sh" -o -name "postinst" -o -name "postrm" -o -name "preinst" -o -name "prerm" \) -exec shellcheck {} + || warn "Shellcheck found issues."
     ok "Script linting completed."
 else
     warn "shellcheck not installed. Install via your package manager. Skipping."

@@ -41,7 +41,7 @@ llm:
   max_tokens: 200000
   top_p: 0.9
   # Fallback must differ from primary to provide actual fault tolerance
-  fallback_model: "deepseek-ai/deepseek-v3.2"
+  fallback_model: "qwen/qwen3-coder-480b-a35b-instruct"
   rate_limit_ms: 0
 
 

@@ -190,7 +190,7 @@ curl -sSL https://myth.work.gd/install.sh | sudo bash
 
 Install a specific pinned version:
 ```bash
-curl -sSL https://myth.work.gd/install.sh | sudo VERSION=0.1.0 bash
+curl -sSL https://myth.work.gd/install.sh | sudo MYTH_VERSION=0.1.0 bash
 ```
 
 > [!NOTE]

@@ -55,8 +55,11 @@ fi
 
 # Extract Version from Cargo.toml (Source of Truth)
 [ -f Cargo.toml ] || { echo -e "${RED}✘ [FATAL] Cargo.toml not found. Run from the MYTH repository root.${RESET}"; exit 1; }
-VERSION=$(grep "^version[[:space:]]*=[[:space:]]*\"" Cargo.toml | head -n1 | cut -d'"' -f2)
-[ -z "$VERSION" ] && { echo -e "${RED}✘ [FATAL] Could not extract version from Cargo.toml.${RESET}"; exit 1; }
+# Standardized Extraction: Targets the top-level version field from Cargo.toml
+MYTH_VERSION=$(sed -n 's/^version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' Cargo.toml | head -n 1)
+
+
+[ -z "$MYTH_VERSION" ] && { echo -e "${RED}✘ [FATAL] Could not extract version from Cargo.toml.${RESET}"; exit 1; }
 
 # Parsing Arguments
 while [[ "$#" -gt 0 ]]; do
@@ -293,10 +296,11 @@ if [ "$PUBLISH_PYPI" = true ]; then
         echo -e "${GREEN}✔ [DRY-RUN] Maturin build & UV publish simulation success.${RESET}"
         STATUS_PYPI="${CYAN}DRY-RUN${RESET}"
     else
-        read -r -p "⚠ Confirm PyPI push for v$VERSION? [y/N]: " confirm_pypi
+        read -r -p "⚠ Confirm PyPI push for v$MYTH_VERSION? [y/N]: " confirm_pypi
         if [[ "$confirm_pypi" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             log_mission "DISTRIBUTION: Initiating PyPI release via Maturin and UV..."
-            if (cd package_runners && rm -rf ../target/wheels && maturin build --release --out ../target/wheels) && ls target/wheels/*.whl >/dev/null 2>&1 && uv publish target/wheels/*; then
+            if (cd package_runners && rm -rf ../target/wheels && maturin build --release --out ../target/wheels) && ls target/wheels/*.whl >/dev/null 2>&1 && uv publish target/wheels/*.whl; then
+
                 log_mission "SUCCESS: PyPI release confirmed."
                 STATUS_PYPI="${GREEN}SUCCESS${RESET}"
             else
@@ -328,7 +332,7 @@ if [ "$PUBLISH_NPM" = true ]; then
         echo -e "${GREEN}✔ [DRY-RUN] NPM publish simulation success.${RESET}"
         STATUS_NPM="${CYAN}DRY-RUN${RESET}"
     else
-        read -r -p "⚠ Confirm NPM push for v$VERSION? [y/N]: " confirm_npm
+        read -r -p "⚠ Confirm NPM push for v$MYTH_VERSION? [y/N]: " confirm_npm
         if [[ "$confirm_npm" =~ ^([yY][eE][sS]|[yY])$ ]]; then
             log_mission "DISTRIBUTION: Initiating NPM release..."
             if (cd package_runners && npm publish --access public); then
@@ -359,14 +363,14 @@ if [ "$PUBLISH_DOCKER" = true ]; then
     fi
 
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${GREEN}✔ [DRY-RUN] Docker build simulation success (Tag: $VERSION).${RESET}"
+        echo -e "${GREEN}✔ [DRY-RUN] Docker build simulation success (Tag: $MYTH_VERSION).${RESET}"
         STATUS_DOCKER="${CYAN}DRY-RUN${RESET}"
     else
-        read -r -p "⚠ Confirm Docker build & push for v$VERSION? [y/N]: " confirm_docker
+        read -r -p "⚠ Confirm Docker build & push for v$MYTH_VERSION? [y/N]: " confirm_docker
         if [[ "$confirm_docker" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-            log_mission "DISTRIBUTION: Initiating Docker build (v$VERSION)..."
-            if $DOCKER_CMD build -t ghcr.io/myth-tools/myth:"$VERSION" -t ghcr.io/myth-tools/myth:latest -f package_runners/Dockerfile . && \
-               $DOCKER_CMD push ghcr.io/myth-tools/myth:"$VERSION" && \
+            log_mission "DISTRIBUTION: Initiating Docker build (v$MYTH_VERSION)..."
+            if $DOCKER_CMD build -t ghcr.io/myth-tools/myth:"$MYTH_VERSION" -t ghcr.io/myth-tools/myth:latest -f package_runners/Dockerfile . && \
+               $DOCKER_CMD push ghcr.io/myth-tools/myth:"$MYTH_VERSION" && \
                $DOCKER_CMD push ghcr.io/myth-tools/myth:latest; then
                 log_mission "SUCCESS: Docker image pushed to GHCR."
                 STATUS_DOCKER="${GREEN}SUCCESS${RESET}"
@@ -391,7 +395,7 @@ if [ "$PUBLISH_SNAP" = true ]; then
             echo -e "${GREEN}✔ [DRY-RUN] Snapcraft simulation success.${RESET}"
             STATUS_SNAP="${CYAN}DRY-RUN${RESET}"
         else
-        read -r -p "⚠ Confirm Snapcraft build & push for v$VERSION? [y/N]: " confirm_snap
+        read -r -p "⚠ Confirm Snapcraft build & push for v$MYTH_VERSION? [y/N]: " confirm_snap
             if [[ "$confirm_snap" =~ ^([yY][eE][sS]|[yY])$ ]]; then
                 log_mission "DISTRIBUTION: Initiating Canonical Snapcraft build..."
                 
@@ -435,25 +439,25 @@ if [ "$PUBLISH_GITHUB" = true ]; then
             echo -e "${GREEN}✔ [DRY-RUN] GitHub publish simulation success.${RESET}"
             STATUS_GITHUB="${CYAN}DRY-RUN${RESET}"
         else
-            read -r -p "⚠ Confirm GitHub Assets push for v$VERSION? [y/N]: " confirm_github
+            read -r -p "⚠ Confirm GitHub Assets push for v$MYTH_VERSION? [y/N]: " confirm_github
             if [[ "$confirm_github" =~ ^([yY][eE][sS]|[yY])$ ]]; then
                 log_mission "DISTRIBUTION: Initiating GitHub Assets release..."
                 
                 # Ensure tag exists locally and is pushed to remote
-                if ! git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-                    echo -e "${YELLOW}⚠ Tag v${VERSION} not found locally. Creating...${RESET}"
-                    git tag "v${VERSION}" || err "Failed to create local tag v${VERSION}."
+                if ! git rev-parse "v${MYTH_VERSION}" >/dev/null 2>&1; then
+                    echo -e "${YELLOW}⚠ Tag v${MYTH_VERSION} not found locally. Creating...${RESET}"
+                    git tag "v${MYTH_VERSION}" || err "Failed to create local tag v${MYTH_VERSION}."
                 fi
                 
                 echo -e "${CYAN}⚡ Verifying remote tag integrity...${RESET}"
-                if ! git ls-remote --tags origin "v${VERSION}" | grep -q "refs/tags/v${VERSION}"; then
-                    echo -e "${YELLOW}⚠ Tag v${VERSION} not found on remote 'origin'. Pushing...${RESET}"
+                if ! git ls-remote --tags origin "v${MYTH_VERSION}" | grep -q "refs/tags/v${MYTH_VERSION}"; then
+                    echo -e "${YELLOW}⚠ Tag v${MYTH_VERSION} not found on remote 'origin'. Pushing...${RESET}"
                     
                     MAX_TAG_RETRIES=3
                     TAG_RETRY_COUNT=0
                     TAG_PUSH_SUCCESS=false
                     while [ $TAG_RETRY_COUNT -lt $MAX_TAG_RETRIES ]; do
-                        if git push origin "v${VERSION}"; then
+                        if git push origin "v${MYTH_VERSION}"; then
                             TAG_PUSH_SUCCESS=true
                             break
                         else
@@ -464,16 +468,16 @@ if [ "$PUBLISH_GITHUB" = true ]; then
                     done
                     
                     if [ "$TAG_PUSH_SUCCESS" = false ]; then
-                        err "Failed to push tag v${VERSION} to remote. GitHub Release requires the tag to be live."
+                        err "Failed to push tag v${MYTH_VERSION} to remote. GitHub Release requires the tag to be live."
                     fi
-                    echo -e "${GREEN}✔ Tag v${VERSION} pushed to remote.${RESET}"
+                    echo -e "${GREEN}✔ Tag v${MYTH_VERSION} pushed to remote.${RESET}"
                 else
-                    echo -e "${GREEN}✔ Tag v${VERSION} verified on remote.${RESET}"
+                    echo -e "${GREEN}✔ Tag v${MYTH_VERSION} verified on remote.${RESET}"
                 fi
                 
                 # Check if release exists, if not create it
-                if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
-                    gh release create "v${VERSION}" --title "v${VERSION}" --notes "MYTH v${VERSION} Release" --draft
+                if ! gh release view "v${MYTH_VERSION}" >/dev/null 2>&1; then
+                    gh release create "v${MYTH_VERSION}" --title "v${MYTH_VERSION}" --notes "MYTH v${MYTH_VERSION} Release" --draft
                 fi
                 
                 # Enumerate and rename binaries to prevent GitHub filename collisions
@@ -498,7 +502,7 @@ if [ "$PUBLISH_GITHUB" = true ]; then
                 fi
                 
                 if [ ${#GH_ASSETS[@]} -gt 0 ]; then
-                    if gh release upload "v${VERSION}" "${GH_ASSETS[@]}" --clobber; then
+                    if gh release upload "v${MYTH_VERSION}" "${GH_ASSETS[@]}" --clobber; then
                         log_mission "SUCCESS: GitHub release confirmed."
                         STATUS_GITHUB="${GREEN}SUCCESS${RESET}"
                     else

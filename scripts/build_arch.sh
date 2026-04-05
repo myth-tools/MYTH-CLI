@@ -432,18 +432,38 @@ done
 if [ ${#PRODUCED_PKGS[@]} -gt 0 ]; then
     section "GENERATING ARCH REPO DATABASE"
 
-    # repo-add is only available on Arch. On other systems, we create a minimal one.
+    # repo-add is only available on Arch. On other systems, we use a transient Arch Docker container.
     if command -v repo-add &>/dev/null; then
         info "Using native repo-add..."
-        rm -f "$ARCH_OUTPUT/myth.db.tar.gz" "$ARCH_OUTPUT/myth.files.tar.gz"
+        rm -f "$ARCH_OUTPUT/myth.db" "$ARCH_OUTPUT/myth.db.tar.gz" "$ARCH_OUTPUT/myth.files" "$ARCH_OUTPUT/myth.files.tar.gz"
         for pkg in "${PRODUCED_PKGS[@]}"; do
             repo-add "$ARCH_OUTPUT/myth.db.tar.gz" "$pkg"
         done
-        ok "Arch repo database generated with repo-add."
+        ok "Arch repo database generated with native repo-add."
+    elif command -v docker &>/dev/null && docker info &>/dev/null; then
+        info "repo-add not on host. Initiating transient Arch Docker worker..."
+        
+        # We need relative paths for the Docker container mount
+        REL_ARCH_OUTPUT="target/arch"
+        rm -f "$ARCH_OUTPUT/myth.db" "$ARCH_OUTPUT/myth.db.tar.gz" "$ARCH_OUTPUT/myth.files" "$ARCH_OUTPUT/myth.files.tar.gz"
+        
+        # Run repo-add inside official Arch container
+        if docker run --rm -v "$(pwd):/work" -w /work archlinux:latest \
+            bash -c "pacman -Sy --noconfirm && for pkg in $REL_ARCH_OUTPUT/*.pkg.tar.zst; do repo-add $REL_ARCH_OUTPUT/myth.db.tar.gz \$pkg; done" &>"$ARCH_OUTPUT/docker_repo.log"; then
+            ok "Arch repo database generated via Dockerized Arch Linux."
+        else
+            warn "Dockerized Arch worker failed. Check $ARCH_OUTPUT/docker_repo.log"
+            # Fallback to index only
+            FALLBACK_TO_INDEX=true
+        fi
     else
-        # On non-Arch systems, we can't generate the full database.
+        FALLBACK_TO_INDEX=true
+    fi
+
+    if [ "${FALLBACK_TO_INDEX:-false}" = true ] || [ ! -f "$ARCH_OUTPUT/myth.db.tar.gz" ]; then
+        # On non-Arch systems without Docker, we can't generate the full database.
         # The custom repo path is secondary to AUR anyway.
-        info "repo-add not available (not on Arch). Creating index file instead..."
+        info "repo-add not available (host/docker). Creating index file instead..."
         # Generate a simple package listing for the custom repo
         {
             echo "# MYTH Arch Repository"
@@ -456,8 +476,8 @@ if [ ${#PRODUCED_PKGS[@]} -gt 0 ]; then
                 basename "$pkg"
             done
         } > "$ARCH_OUTPUT/README"
-        ok "Arch repo index created (full database requires Arch host)."
-        warn "For full pacman repo support, run this script on an Arch system or use AUR."
+        ok "Arch repo index created (full database requires Arch host or Docker)."
+        warn "To fix this fully, install Docker or run on an Arch-based system."
     fi
 fi
 

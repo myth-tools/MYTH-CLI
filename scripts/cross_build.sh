@@ -72,19 +72,31 @@ if ! docker info &>/dev/null; then
 fi
 ok "Docker daemon: active"
 
-# ─── Pre-flight Performance & Connectivity Audit ───
-info "Pre-flight registry check (ghcr.io)..."
-DOCKER_VER=$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo "0.0.0")
-DOCKER_MAJOR=$(echo "$DOCKER_VER" | cut -d. -f1)
-
-if [ "$DOCKER_MAJOR" -ge 24 ] && docker pull ghcr.io/cross-rs/aarch64-unknown-linux-gnu:0.2.5 --dry-run &>/dev/null; then
-    ok "Registry connection verified (dry-run)."
-elif docker images -q ghcr.io/cross-rs/aarch64-unknown-linux-gnu:0.2.5 &>/dev/null; then
+# Retry loop for Docker registry access
+REGISTRY_IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-gnu:0.2.5"
+IMAGE_PRESENT=false
+if docker images -q "$REGISTRY_IMAGE" &>/dev/null; then
+    IMAGE_PRESENT=true
     ok "Registry image present locally."
 else
-    # Attempt a shallow pull or just assume it's okay (cross will handle it)
-    info "Registry access will be verified during build."
+    info "Pre-fetching registry image (ghcr.io) with 3-attempt exponential backoff..."
+
+    for attempt in 1 2 3; do
+        if docker pull "$REGISTRY_IMAGE" &>/dev/null; then
+            IMAGE_PRESENT=true
+            ok "Registry image synchronized."
+            break
+        else
+            warn "Registry pull attempt $attempt/3 timed out. Retrying in $((attempt * 5))s..."
+            sleep $((attempt * 5))
+        fi
+    done
 fi
+
+if [ "$IMAGE_PRESENT" = false ]; then
+    warn "Registry unreachable. Cross-build will attempt to use local toolchains if available."
+fi
+
 
 # ─── Ensure cross is installed ───
 if ! command -v cross &>/dev/null; then
@@ -147,23 +159,49 @@ for DEB_ARCH in "${BUILD_ARCHES[@]}"; do
     info "Cross-compiling for $RUST_TARGET..."
     
     BUILD_LOG=$(mktemp)
-    # Attempt 1: Cross-rs (Docker/Podman required)
-    if ! cross build --release --target "$RUST_TARGET" 2>&1 | tee "$BUILD_LOG"; then
-        if grep -q "denied\|unauthorized" "$BUILD_LOG"; then
-            err "Registry access denied for $DEB_ARCH. Run 'docker login ghcr.io' first."
-        fi
-        warn "Cross-rs build failed (Docker issue?). Attempting native cargo build fallback..."
+    CLEANUP_FILES+=("$BUILD_LOG")
+    
+    # Attempt 1: Cross-rs (Docker requirement)
+    CROSS_SUCCESS=false
+    if cross build --release --target "$RUST_TARGET" 2>&1 | tee "$BUILD_LOG"; then
+        CROSS_SUCCESS=true
+    else
+        warn "Cross-rs build failed (Docker timeout or registry issue)."
         
-        # Attempt 2: Native cargo build (requires local toolchain & cross-linker)
-        if ! cargo build --release --target "$RUST_TARGET" 2>&1 | tee -a "$BUILD_LOG"; then
-            cat "$BUILD_LOG" | tail -10
-            rm -f "$BUILD_LOG"
-            warn "All cross-compilation attempts failed for $DEB_ARCH. Skipping."
-            continue
+        # Attempt 2: Native cargo build (Requires local toolchain)
+        # Determine the required linker for this target
+        LINKER=""
+        REMEDIATION=""
+        case "$RUST_TARGET" in
+            aarch64-unknown-linux-gnu*) LINKER="aarch64-linux-gnu-gcc"; REMEDIATION="sudo apt install gcc-aarch64-linux-gnu" ;;
+            armv7-unknown-linux-gnueabihf*) LINKER="arm-linux-gnueabihf-gcc"; REMEDIATION="sudo apt install gcc-arm-linux-gnueabihf" ;;
+            i686-unknown-linux-gnu*) LINKER="gcc-multilib"; REMEDIATION="sudo apt install gcc-multilib" ;;
+            *musl*) # Musl targets often need specialized cross-linkers or 'musl-tools'
+                LINKER="musl-gcc"; REMEDIATION="sudo apt install musl-tools" ;;
+        esac
+
+        if [ -n "$LINKER" ] && ! command -v "$LINKER" &>/dev/null; then
+            warn "Local toolchain for $RUST_TARGET is missing (Required: $LINKER)."
+            echo -e "${YELLOW}  ↳ [REMEDIATION] Run: ${CYAN}${BOLD}$REMEDIATION${NC}"
+            warn "All compilation paths exhausted for $DEB_ARCH."
+        else
+            info "Attempting native cargo build fallback (using host toolchain)..."
+            if cargo build --release --target "$RUST_TARGET" 2>&1 | tee -a "$BUILD_LOG"; then
+                CROSS_SUCCESS=true
+                ok "Native cargo build fallback successful."
+            else
+                cat "$BUILD_LOG" | tail -10
+                warn "Native cargo build failed for $DEB_ARCH."
+            fi
         fi
-        ok "Native cargo build fallback successful."
     fi
-    rm -f "$BUILD_LOG"
+
+    if [ "$CROSS_SUCCESS" = false ]; then
+        warn "Failed to produce binary for architecture: $DEB_ARCH."
+        # We continue to the next architecture instead of exiting, allowing partial success
+        continue
+    fi
+
 
     CROSS_BINARY="target/$RUST_TARGET/release/myth"
     if [ ! -f "$CROSS_BINARY" ]; then

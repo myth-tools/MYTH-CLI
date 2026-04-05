@@ -119,17 +119,24 @@ cross_confirm="y"
 CROSS_DEBS=()
 if [[ ! "$cross_confirm" =~ ^[Nn]$ ]]; then
     info "Initiating cross-compilation engine..."
-    if bash scripts/cross_build.sh arm64; then
-        # Collect all cross-produced debs (excluding the host amd64 one)
+    # Always allow the pipeline to proceed even if cross-build fails for some arches
+    set +e
+    bash scripts/cross_build.sh arm64 musl-x64 musl-arm64
+    CROSS_STATUS=$?
+    set -e
+
+    if [ $CROSS_STATUS -eq 0 ]; then
+        # Collect all cross-produced debs
         while IFS= read -r -d '' deb; do
             if [ "$deb" != "$AMD64_DEB" ]; then
                 CROSS_DEBS+=("$deb")
             fi
         done < <(find target/debian -name 'myth_*_arm64.deb' -print0 2>/dev/null)
-        ok "Cross-compilation complete. ${#CROSS_DEBS[@]} additional package(s) ready."
+        ok "Cross-compilation engine completed sequence."
     else
-        warn "Cross-compilation failed. Continuing with amd64 only. Nethunter users will fall back to source build."
+        warn "Cross-compilation engine encountered errors for some targets. Proceeding with available assets."
     fi
+
 else
     info "Cross-compilation skipped. Only amd64 will be in the APT repository this release."
 fi
@@ -337,14 +344,19 @@ fi
 
 # Static / Portability
 if [ -d "target/portability" ] && [ "$(ls -A target/portability 2>/dev/null)" ]; then
-    for bin in target/portability/myth-*-static; do
-        [ -e "$bin" ] || continue
-        arch=$(basename "$bin" | sed -E 's/myth-musl-([^-]+)-static/\1/')
-        print_row "Static (Portable)" "$arch" "✔ Built" "${GREEN}"
+    # We want to check for specifically x64 and arm64
+    for arch in "x64" "arm64"; do
+        if [ -f "target/portability/myth-musl-${arch}-static" ]; then
+            print_row "Static (Portable)" "$arch" "✔ Built" "${GREEN}"
+        else
+            print_row "Static (Portable)" "$arch" "✘ Failed/Missing" "${RED}"
+        fi
     done
 else
-    print_row "Static (Portable)" "arm64/x64" "✘ Missing" "${RED}"
+    print_row "Static (Portable)" "x64" "✘ Failed/Missing" "${RED}"
+    print_row "Static (Portable)" "arm64" "✘ Failed/Missing" "${RED}"
 fi
+
 
 echo -e "${CYAN}${BOLD}└──────────────────────┴─────────────┴──────────────────────────┘${NC}"
 

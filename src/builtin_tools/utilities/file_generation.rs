@@ -786,7 +786,7 @@ impl FileGenerator {
 
                     const FICLONE: u64 = 0x40049409;
                     unsafe {
-                        if ::libc::ioctl(dst_fd, FICLONE, src_fd) == 0 {
+                        if ::libc::ioctl(dst_fd, FICLONE as _, src_fd) == 0 {
                             return Ok(());
                         }
                     }

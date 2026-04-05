@@ -25,24 +25,28 @@ NC='\033[0m'
 
 # These placeholders are replaced by CI/CD during release
 AGENT_NAME="MYTH"
-VERSION="0.1.0"
+MYTH_VERSION="0.1.0"
 
 # Fallback for local execution
 if [[ "$AGENT_NAME" == "__"*"__" ]]; then
     if [ -f "config/agent.yaml" ]; then
         AGENT_NAME=$(grep "name:" config/agent.yaml | head -n 1 | sed -E 's/.*name:[[:space:]]*["'\'':]*([^"'\'']+)["'\'':]*.*/\1/' | awk '{print $1}')
-        VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+        MYTH_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
     else
         AGENT_NAME="MYTH"
-        VERSION="0.1.0"
+        MYTH_VERSION="0.1.0"
     fi
 fi
 
 # Default Paths
 TMP_DIR="${TMPDIR:-/tmp}"
 LOG_FILE="${TMP_DIR}/myth-uninstall-$(date +%s).log"
+
+# Industry Grade: Establish primary terminal link before redirection
+exec 3>&1
 # Redirect all subsequent stdout/stderr to log file, stripping ANSI codes
 exec > >(sed -u 's/\x1b\[[0-9;]*[a-zA-Z]//g' >> "$LOG_FILE") 2>&1
+
 
 cleanup() {
     local exit_code=$?
@@ -65,7 +69,7 @@ section() { echo -e "\n${BOLD}${MAGENTA}─── $1 ───${NC}" >&3; }
 
 echo -e "${MAGENTA}${BOLD}${BANNER}${NC}" >&3
 echo -e "${CYAN}  [ ${AGENT_NAME} — TACTICAL DECOMMISSIONING & SANITIZATION ]${NC}" >&3
-echo -e "  ${BOLD}Initiating target neutralization (v${VERSION})...${NC}\n" >&3
+echo -e "  ${BOLD}Initiating target neutralization (v${MYTH_VERSION})...${NC}\n" >&3
 SCRUBBED_COUNT=0
 info "Decommissioning logs initiated at: $LOG_FILE"
 
@@ -237,10 +241,10 @@ fi
 # 2. Global Binary Decommissioning
 section "GLOBAL BINARY DECOMMISSIONING"
 info "Searching for orphan binaries..."
-PATHS_TO_REMOVE="$BIN_DIR/myth $BIN_DIR/agent $BIN_DIR/chief"
+PATHS_TO_REMOVE=("$BIN_DIR/myth" "$BIN_DIR/agent" "$BIN_DIR/chief")
 
 DECOMMISSIONED=0
-for path in $PATHS_TO_REMOVE; do
+for path in "${PATHS_TO_REMOVE[@]}"; do
     if [ -f "$path" ] || [ -L "$path" ]; then
         audit "Decommissioning $path..."
         rm -f "$path"
@@ -248,23 +252,25 @@ for path in $PATHS_TO_REMOVE; do
     fi
 done
 
-if [ $DECOMMISSIONED -eq 1 ]; then
+if [ "$DECOMMISSIONED" -eq 1 ]; then
     ok "Global binaries neutralized."
 else
     audit "No global binaries detected."
 fi
 
+
 # 3. System Asset Scrubbing
 section "SYSTEM ASSET SCRUBBING"
-if [ -d "$CONF_DIR" ]; then
+if [ -d "$CONF_DIR" ] && [ "$CONF_DIR" != "/" ] && [ "$CONF_DIR" != "${ROOT_DIR}/etc" ]; then
     audit "System configuration detected at $CONF_DIR"
     info "Purging system assets..."
     rm -rf "$CONF_DIR"
-    rm -rf "$LOG_DIR"
+    [ -d "$LOG_DIR" ] && [ "$LOG_DIR" != "/" ] && rm -rf "$LOG_DIR"
     ok "System-level assets scrubbed."
 else
-    audit "No system-level assets found at $CONF_DIR."
+    audit "No system-level assets found or path is unsafe."
 fi
+
 
 # 4. Neural Link Sanitization (User Data)
 section "NEURAL LINK SANITIZATION"

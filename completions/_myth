@@ -1,0 +1,1077 @@
+#compdef myth
+
+autoload -U is-at-least
+
+_myth() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'-c+[Path to user config file (default\: ~/.config/myth/user.yaml)]:CONFIG:_default' \
+'--config=[Path to user config file (default\: ~/.config/myth/user.yaml)]:CONFIG:_default' \
+'-l+[Override log level (trace, debug, info, warn, error)]:LOG_LEVEL:(trace debug info warn error)' \
+'--log-level=[Override log level (trace, debug, info, warn, error)]:LOG_LEVEL:(trace debug info warn error)' \
+'--no-tui[Disable TUI (use simple interactive CLI)]' \
+'--no-sandbox[Disable sandbox (NOT RECOMMENDED)]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_myth_commands" \
+"*::: :->myth" \
+&& ret=0
+    case $state in
+    (myth)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:myth-command-$line[1]:"
+        case $line[1] in
+            (scan)
+_arguments "${_arguments_options[@]}" : \
+'-p+[Reconnaissance methodology profile]:PROFILE:_default' \
+'--profile=[Reconnaissance methodology profile]:PROFILE:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+':target -- Target domain, IP, or URL for mission focus:_default' \
+&& ret=0
+;;
+(stealth)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':target -- Target domain, IP, or URL:_default' \
+&& ret=0
+;;
+(osint)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':target -- Target domain, IP, or URL:_default' \
+&& ret=0
+;;
+(vuln)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':target -- Target domain, IP, or URL:_default' \
+&& ret=0
+;;
+(tools)
+_arguments "${_arguments_options[@]}" : \
+'-c+[Filter mission assets by technical category]:CATEGORY:_default' \
+'--category=[Filter mission assets by technical category]:CATEGORY:_default' \
+'-s+[Search mission assets by name or keyword]:SEARCH:_default' \
+'--search=[Search mission assets by name or keyword]:SEARCH:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(target)
+_arguments "${_arguments_options[@]}" : \
+'-p+[Reconnaissance methodology profile]:PROFILE:_default' \
+'--profile=[Reconnaissance methodology profile]:PROFILE:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+':target -- Target domain, IP, or URL:_default' \
+&& ret=0
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(config)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+'::name -- Name of the profile:_default' \
+'::action -- Action to perform (enable/disable):_default' \
+'::index -- Phase indices (comma-separated, e.g., 0,1,2):_default' \
+&& ret=0
+;;
+(check)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(mcp)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_myth__mcp_commands" \
+"*::: :->mcp" \
+&& ret=0
+
+    case $state in
+    (mcp)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:myth-mcp-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(toggle)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Name of the server:_default' \
+':state -- State to set (on/off, enable/disable, true/false):_default' \
+&& ret=0
+;;
+(add-local)
+_arguments "${_arguments_options[@]}" : \
+'*-a+[Arguments for the command (comma-separated or multiple flags)]:ARGS:_default' \
+'*--args=[Arguments for the command (comma-separated or multiple flags)]:ARGS:_default' \
+'*-e+[Environment variables (KEY=VALUE, comma-separated)]:ENV:_default' \
+'*--env=[Environment variables (KEY=VALUE, comma-separated)]:ENV:_default' \
+'-d+[Working directory]:DIR:_default' \
+'--dir=[Working directory]:DIR:_default' \
+'--description=[Operational description]:DESCRIPTION:_default' \
+'-t+[Transport protocol (stdio, sse, http). Default\: stdio]:TRANSPORT:_default' \
+'--transport=[Transport protocol (stdio, sse, http). Default\: stdio]:TRANSPORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Name of the server:_default' \
+':command -- Command to run (e.g., npx, python):_default' \
+&& ret=0
+;;
+(add-remote)
+_arguments "${_arguments_options[@]}" : \
+'*--headers=[Custom headers (Header\:Value, comma-separated)]:HEADERS:_default' \
+'--description=[Operational description]:DESCRIPTION:_default' \
+'-t+[Transport protocol (sse, http, stdio). Default\: sse]:TRANSPORT:_default' \
+'--transport=[Transport protocol (sse, http, stdio). Default\: sse]:TRANSPORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Name of the server:_default' \
+':url -- SSE URL:_default' \
+&& ret=0
+;;
+(tools)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Name of the server:_default' \
+&& ret=0
+;;
+(sync)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Name of the server:_default' \
+&& ret=0
+;;
+(allow-tool)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':server -- Name of the server:_default' \
+':tool -- Name of the tool:_default' \
+&& ret=0
+;;
+(block-tool)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':server -- Name of the server:_default' \
+':tool -- Name of the tool:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_myth__mcp__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:myth-mcp-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(toggle)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-local)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-remote)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tools)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(sync)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(allow-tool)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(block-tool)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(vitals)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(findings)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(graph)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(history)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(report)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(sync)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(burn)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(wipe)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(clear)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(depth)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':depth -- Iteration count:_default' \
+&& ret=0
+;;
+(inspect)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':name -- Tool or topic name:_default' \
+&& ret=0
+;;
+(completions)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell -- Target shell environment (bash, zsh, fish, powershell, elvish):(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(usage)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(version)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(subdomains)
+_arguments "${_arguments_options[@]}" : \
+'--active[Enable active brute-force and permutations]' \
+'--recursive[Enable recursive discovery]' \
+'--only-alive[Filter results to only show live subdomains (Default\: true)]' \
+'--master[ULTRA-ROBUST MODE\: Tor + Proxies + Mega Wordlist + Deep Recursion]' \
+'-h[Print help]' \
+'--help[Print help]' \
+':domain -- Target domain:_default' \
+&& ret=0
+;;
+(master)
+_arguments "${_arguments_options[@]}" : \
+'-h[Print help]' \
+'--help[Print help]' \
+':domain -- Target domain:_default' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_myth__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:myth-help-command-$line[1]:"
+        case $line[1] in
+            (scan)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(stealth)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(osint)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(vuln)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tools)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(target)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(chat)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(config)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(profile)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(check)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(mcp)
+_arguments "${_arguments_options[@]}" : \
+":: :_myth__help__mcp_commands" \
+"*::: :->mcp" \
+&& ret=0
+
+    case $state in
+    (mcp)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:myth-help-mcp-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(toggle)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-local)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(add-remote)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(tools)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(sync)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(remove)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(allow-tool)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(block-tool)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(vitals)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(findings)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(graph)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(history)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(report)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(sync)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(burn)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(wipe)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(clear)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(depth)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(inspect)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(completions)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(usage)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(version)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(subdomains)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(master)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_myth_commands] )) ||
+_myth_commands() {
+    local commands; commands=(
+'scan:Initialize full-spectrum target acquisition and reconnaissance' \
+'stealth:Launch immediate low-signature, passive-only reconnaissance' \
+'osint:Launch specialized Open Source Intelligence (OSINT) ops' \
+'vuln:Perform a deep, multi-vector vulnerability assessment' \
+'tools:Catalog and display all synchronized mission assets/tools' \
+'target:Force rotate the mission focus to a new target/CIDR' \
+'chat:Launch an interactive tactical chat session with the agent' \
+'config:Retrieve the current mission configuration metadata' \
+'profile:View or modulate tactical reconnaissance profiles/phases' \
+'check:Verify system health, sandbox status, and tool availability' \
+'mcp:Manage Custom User MCP Servers (Local & Remote)' \
+'vitals:Analyze neural pulses and session lifecycle metadata' \
+'findings:Aggregate and display all discovered tactical intelligence' \
+'graph:Render the infrastructure relationship graph of target assets' \
+'history:Aggregate tactical event logs and mission history' \
+'report:Generate a comprehensive executive intelligence summary' \
+'sync:Force a re-synchronization with local tool registries' \
+'burn:EMERGENCY\: Immediate shred of all data and system shutdown' \
+'wipe:Wipe the current session memory and tactical context' \
+'clear:Purge visual buffers (Memory remains)' \
+'depth:Modulate the maximum neural iteration depth for the agent' \
+'inspect:Retrieve deep technical documentation for a specific asset' \
+'completions:Generate high-performance shell autocompletion tactical scripts' \
+'usage:Display the tactical usage documentation' \
+'version:Display the current neural core version' \
+'subdomains:High-speed multi-source subdomain discovery' \
+'master:ULTRA-ROBUST DISCOVERY\: Tor + Proxies + Mega Wordlist + Deep Recursion' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'myth commands' commands "$@"
+}
+(( $+functions[_myth__burn_commands] )) ||
+_myth__burn_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth burn commands' commands "$@"
+}
+(( $+functions[_myth__chat_commands] )) ||
+_myth__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth chat commands' commands "$@"
+}
+(( $+functions[_myth__check_commands] )) ||
+_myth__check_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth check commands' commands "$@"
+}
+(( $+functions[_myth__clear_commands] )) ||
+_myth__clear_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth clear commands' commands "$@"
+}
+(( $+functions[_myth__completions_commands] )) ||
+_myth__completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth completions commands' commands "$@"
+}
+(( $+functions[_myth__config_commands] )) ||
+_myth__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth config commands' commands "$@"
+}
+(( $+functions[_myth__depth_commands] )) ||
+_myth__depth_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth depth commands' commands "$@"
+}
+(( $+functions[_myth__findings_commands] )) ||
+_myth__findings_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth findings commands' commands "$@"
+}
+(( $+functions[_myth__graph_commands] )) ||
+_myth__graph_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth graph commands' commands "$@"
+}
+(( $+functions[_myth__help_commands] )) ||
+_myth__help_commands() {
+    local commands; commands=(
+'scan:Initialize full-spectrum target acquisition and reconnaissance' \
+'stealth:Launch immediate low-signature, passive-only reconnaissance' \
+'osint:Launch specialized Open Source Intelligence (OSINT) ops' \
+'vuln:Perform a deep, multi-vector vulnerability assessment' \
+'tools:Catalog and display all synchronized mission assets/tools' \
+'target:Force rotate the mission focus to a new target/CIDR' \
+'chat:Launch an interactive tactical chat session with the agent' \
+'config:Retrieve the current mission configuration metadata' \
+'profile:View or modulate tactical reconnaissance profiles/phases' \
+'check:Verify system health, sandbox status, and tool availability' \
+'mcp:Manage Custom User MCP Servers (Local & Remote)' \
+'vitals:Analyze neural pulses and session lifecycle metadata' \
+'findings:Aggregate and display all discovered tactical intelligence' \
+'graph:Render the infrastructure relationship graph of target assets' \
+'history:Aggregate tactical event logs and mission history' \
+'report:Generate a comprehensive executive intelligence summary' \
+'sync:Force a re-synchronization with local tool registries' \
+'burn:EMERGENCY\: Immediate shred of all data and system shutdown' \
+'wipe:Wipe the current session memory and tactical context' \
+'clear:Purge visual buffers (Memory remains)' \
+'depth:Modulate the maximum neural iteration depth for the agent' \
+'inspect:Retrieve deep technical documentation for a specific asset' \
+'completions:Generate high-performance shell autocompletion tactical scripts' \
+'usage:Display the tactical usage documentation' \
+'version:Display the current neural core version' \
+'subdomains:High-speed multi-source subdomain discovery' \
+'master:ULTRA-ROBUST DISCOVERY\: Tor + Proxies + Mega Wordlist + Deep Recursion' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'myth help commands' commands "$@"
+}
+(( $+functions[_myth__help__burn_commands] )) ||
+_myth__help__burn_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help burn commands' commands "$@"
+}
+(( $+functions[_myth__help__chat_commands] )) ||
+_myth__help__chat_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help chat commands' commands "$@"
+}
+(( $+functions[_myth__help__check_commands] )) ||
+_myth__help__check_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help check commands' commands "$@"
+}
+(( $+functions[_myth__help__clear_commands] )) ||
+_myth__help__clear_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help clear commands' commands "$@"
+}
+(( $+functions[_myth__help__completions_commands] )) ||
+_myth__help__completions_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help completions commands' commands "$@"
+}
+(( $+functions[_myth__help__config_commands] )) ||
+_myth__help__config_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help config commands' commands "$@"
+}
+(( $+functions[_myth__help__depth_commands] )) ||
+_myth__help__depth_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help depth commands' commands "$@"
+}
+(( $+functions[_myth__help__findings_commands] )) ||
+_myth__help__findings_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help findings commands' commands "$@"
+}
+(( $+functions[_myth__help__graph_commands] )) ||
+_myth__help__graph_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help graph commands' commands "$@"
+}
+(( $+functions[_myth__help__help_commands] )) ||
+_myth__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help help commands' commands "$@"
+}
+(( $+functions[_myth__help__history_commands] )) ||
+_myth__help__history_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help history commands' commands "$@"
+}
+(( $+functions[_myth__help__inspect_commands] )) ||
+_myth__help__inspect_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help inspect commands' commands "$@"
+}
+(( $+functions[_myth__help__master_commands] )) ||
+_myth__help__master_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help master commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp_commands] )) ||
+_myth__help__mcp_commands() {
+    local commands; commands=(
+'list:List all configured MCP servers' \
+'toggle:Toggle an MCP server (enable/disable)' \
+'add-local:Add a new Local MCP Server' \
+'add-remote:Add a new Remote MCP Server via SSE' \
+'tools:List all available tools for an MCP server' \
+'sync:Force re-sync factory defaults to mcp.json' \
+'remove:Remove an MCP server from the registry' \
+'allow-tool:Allow a specific tool from an MCP server' \
+'block-tool:Block a specific tool from an MCP server' \
+    )
+    _describe -t commands 'myth help mcp commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__add-local_commands] )) ||
+_myth__help__mcp__add-local_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp add-local commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__add-remote_commands] )) ||
+_myth__help__mcp__add-remote_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp add-remote commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__allow-tool_commands] )) ||
+_myth__help__mcp__allow-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp allow-tool commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__block-tool_commands] )) ||
+_myth__help__mcp__block-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp block-tool commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__list_commands] )) ||
+_myth__help__mcp__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp list commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__remove_commands] )) ||
+_myth__help__mcp__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp remove commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__sync_commands] )) ||
+_myth__help__mcp__sync_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp sync commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__toggle_commands] )) ||
+_myth__help__mcp__toggle_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp toggle commands' commands "$@"
+}
+(( $+functions[_myth__help__mcp__tools_commands] )) ||
+_myth__help__mcp__tools_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help mcp tools commands' commands "$@"
+}
+(( $+functions[_myth__help__osint_commands] )) ||
+_myth__help__osint_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help osint commands' commands "$@"
+}
+(( $+functions[_myth__help__profile_commands] )) ||
+_myth__help__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help profile commands' commands "$@"
+}
+(( $+functions[_myth__help__report_commands] )) ||
+_myth__help__report_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help report commands' commands "$@"
+}
+(( $+functions[_myth__help__scan_commands] )) ||
+_myth__help__scan_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help scan commands' commands "$@"
+}
+(( $+functions[_myth__help__stealth_commands] )) ||
+_myth__help__stealth_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help stealth commands' commands "$@"
+}
+(( $+functions[_myth__help__subdomains_commands] )) ||
+_myth__help__subdomains_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help subdomains commands' commands "$@"
+}
+(( $+functions[_myth__help__sync_commands] )) ||
+_myth__help__sync_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help sync commands' commands "$@"
+}
+(( $+functions[_myth__help__target_commands] )) ||
+_myth__help__target_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help target commands' commands "$@"
+}
+(( $+functions[_myth__help__tools_commands] )) ||
+_myth__help__tools_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help tools commands' commands "$@"
+}
+(( $+functions[_myth__help__usage_commands] )) ||
+_myth__help__usage_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help usage commands' commands "$@"
+}
+(( $+functions[_myth__help__version_commands] )) ||
+_myth__help__version_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help version commands' commands "$@"
+}
+(( $+functions[_myth__help__vitals_commands] )) ||
+_myth__help__vitals_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help vitals commands' commands "$@"
+}
+(( $+functions[_myth__help__vuln_commands] )) ||
+_myth__help__vuln_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help vuln commands' commands "$@"
+}
+(( $+functions[_myth__help__wipe_commands] )) ||
+_myth__help__wipe_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth help wipe commands' commands "$@"
+}
+(( $+functions[_myth__history_commands] )) ||
+_myth__history_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth history commands' commands "$@"
+}
+(( $+functions[_myth__inspect_commands] )) ||
+_myth__inspect_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth inspect commands' commands "$@"
+}
+(( $+functions[_myth__master_commands] )) ||
+_myth__master_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth master commands' commands "$@"
+}
+(( $+functions[_myth__mcp_commands] )) ||
+_myth__mcp_commands() {
+    local commands; commands=(
+'list:List all configured MCP servers' \
+'toggle:Toggle an MCP server (enable/disable)' \
+'add-local:Add a new Local MCP Server' \
+'add-remote:Add a new Remote MCP Server via SSE' \
+'tools:List all available tools for an MCP server' \
+'sync:Force re-sync factory defaults to mcp.json' \
+'remove:Remove an MCP server from the registry' \
+'allow-tool:Allow a specific tool from an MCP server' \
+'block-tool:Block a specific tool from an MCP server' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'myth mcp commands' commands "$@"
+}
+(( $+functions[_myth__mcp__add-local_commands] )) ||
+_myth__mcp__add-local_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp add-local commands' commands "$@"
+}
+(( $+functions[_myth__mcp__add-remote_commands] )) ||
+_myth__mcp__add-remote_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp add-remote commands' commands "$@"
+}
+(( $+functions[_myth__mcp__allow-tool_commands] )) ||
+_myth__mcp__allow-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp allow-tool commands' commands "$@"
+}
+(( $+functions[_myth__mcp__block-tool_commands] )) ||
+_myth__mcp__block-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp block-tool commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help_commands] )) ||
+_myth__mcp__help_commands() {
+    local commands; commands=(
+'list:List all configured MCP servers' \
+'toggle:Toggle an MCP server (enable/disable)' \
+'add-local:Add a new Local MCP Server' \
+'add-remote:Add a new Remote MCP Server via SSE' \
+'tools:List all available tools for an MCP server' \
+'sync:Force re-sync factory defaults to mcp.json' \
+'remove:Remove an MCP server from the registry' \
+'allow-tool:Allow a specific tool from an MCP server' \
+'block-tool:Block a specific tool from an MCP server' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'myth mcp help commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__add-local_commands] )) ||
+_myth__mcp__help__add-local_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help add-local commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__add-remote_commands] )) ||
+_myth__mcp__help__add-remote_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help add-remote commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__allow-tool_commands] )) ||
+_myth__mcp__help__allow-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help allow-tool commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__block-tool_commands] )) ||
+_myth__mcp__help__block-tool_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help block-tool commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__help_commands] )) ||
+_myth__mcp__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help help commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__list_commands] )) ||
+_myth__mcp__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help list commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__remove_commands] )) ||
+_myth__mcp__help__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help remove commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__sync_commands] )) ||
+_myth__mcp__help__sync_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help sync commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__toggle_commands] )) ||
+_myth__mcp__help__toggle_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help toggle commands' commands "$@"
+}
+(( $+functions[_myth__mcp__help__tools_commands] )) ||
+_myth__mcp__help__tools_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp help tools commands' commands "$@"
+}
+(( $+functions[_myth__mcp__list_commands] )) ||
+_myth__mcp__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp list commands' commands "$@"
+}
+(( $+functions[_myth__mcp__remove_commands] )) ||
+_myth__mcp__remove_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp remove commands' commands "$@"
+}
+(( $+functions[_myth__mcp__sync_commands] )) ||
+_myth__mcp__sync_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp sync commands' commands "$@"
+}
+(( $+functions[_myth__mcp__toggle_commands] )) ||
+_myth__mcp__toggle_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp toggle commands' commands "$@"
+}
+(( $+functions[_myth__mcp__tools_commands] )) ||
+_myth__mcp__tools_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth mcp tools commands' commands "$@"
+}
+(( $+functions[_myth__osint_commands] )) ||
+_myth__osint_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth osint commands' commands "$@"
+}
+(( $+functions[_myth__profile_commands] )) ||
+_myth__profile_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth profile commands' commands "$@"
+}
+(( $+functions[_myth__report_commands] )) ||
+_myth__report_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth report commands' commands "$@"
+}
+(( $+functions[_myth__scan_commands] )) ||
+_myth__scan_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth scan commands' commands "$@"
+}
+(( $+functions[_myth__stealth_commands] )) ||
+_myth__stealth_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth stealth commands' commands "$@"
+}
+(( $+functions[_myth__subdomains_commands] )) ||
+_myth__subdomains_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth subdomains commands' commands "$@"
+}
+(( $+functions[_myth__sync_commands] )) ||
+_myth__sync_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth sync commands' commands "$@"
+}
+(( $+functions[_myth__target_commands] )) ||
+_myth__target_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth target commands' commands "$@"
+}
+(( $+functions[_myth__tools_commands] )) ||
+_myth__tools_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth tools commands' commands "$@"
+}
+(( $+functions[_myth__usage_commands] )) ||
+_myth__usage_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth usage commands' commands "$@"
+}
+(( $+functions[_myth__version_commands] )) ||
+_myth__version_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth version commands' commands "$@"
+}
+(( $+functions[_myth__vitals_commands] )) ||
+_myth__vitals_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth vitals commands' commands "$@"
+}
+(( $+functions[_myth__vuln_commands] )) ||
+_myth__vuln_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth vuln commands' commands "$@"
+}
+(( $+functions[_myth__wipe_commands] )) ||
+_myth__wipe_commands() {
+    local commands; commands=()
+    _describe -t commands 'myth wipe commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_myth" ]; then
+    _myth "$@"
+else
+    compdef _myth myth
+fi

@@ -1,0 +1,185 @@
+.SH SYNOPSIS
+.B myth
+[\fIOPTIONS\fR] \fISUBCOMMAND\fR [\fIARGS\fR...]
+.br
+.B agent
+[\fIOPTIONS\fR] \fISUBCOMMAND\fR [\fIARGS\fR...]
+.br
+.B myth scan
+\fITARGET\fR [\-\-profile \fINAME\fR]
+.br
+.B myth subdomains
+\fIDOMAIN\fR [\-\-active] [\-\-master]
+.br
+.B myth chat
+[\-\-no\-tui]
+.SH DESCRIPTION
+.B MYTH
+(also provisioned under the \fBagent\fR alias)
+is a mission-critical, sovereign reconnaissance orchestrator designed for industrial Linux and Android (Termux) environments. 
+It functions as a neural bridge between Large Language Models (NVIDIA NIM) and the vast 
+ecosystem of security tools (3,000+ binaries) via the \fBModel Context Protocol (MCP)\fR.
+
+The system is built on a "Volatile-First" architecture. All tactical intelligence, vector 
+embeddings, and tool outputs are stored in a high-speed, RAM-only Qdrant store. 
+Absolute host isolation is enforced via \fBBubblewrap\fR namespaces, ensuring that 
+all tool executions occur within a hardened containerized enclave.
+.PP
+On **Termux (Android)** environments, the system dynamically shifts its operational 
+root to the \fB$PREFIX\fR directory, ensuring 100% compatibility without 
+standard root privileges.
+
+.SH GLOBAL OPTIONS
+.TP
+\fB\-c\fR, \fB\-\-config\fR \fIFILE\fR
+Use a specific tactical configuration file (default: ~/.config/myth/user.yaml).
+.TP
+\fB\-l\fR, \fB\-\-log\-level\fR \fILEVEL\fR
+Set neural telemetry depth: \fItrace\fR, \fIdebug\fR, \fIinfo\fR, \fIwarn\fR, \fIerror\fR.
+.TP
+\fB\-\-no\-tui\fR
+Bypass the high-fidelity Terminal User Interface for a standard CLI stream.
+.TP
+\fB\-\-no\-sandbox\fR
+Disable Bubblewrap isolation. \fBWARNING\fR: Only for trusted local environments.
+.TP
+\fB\-\-version\fR
+Display build telemetry and neural core version.
+
+.SH MISSION CORE COMMANDS
+.TP
+\fBscan\fR, \fBrecon\fR \fITARGET\fR
+Initialize the 13-phase, 89-step methodology for full-spectrum target acquisition.
+.TP
+\fBstealth\fR \fITARGET\fR
+Launch passive-only OSINT discovery. Zero active probes or direct target traffic.
+.TP
+\fBvuln\fR \fITARGET\fR
+Execute a deep, multi-vector vulnerability assessment using the full MCP toolset.
+.TP
+\fBsubdomains\fR \fIDOMAIN\fR [\-\-active] [\-\-master]
+High-speed discovery engine. \fB\-\-master\fR activates Tor rotation and recursive logic.
+.TP
+\fBmaster\fR, \fBultra\fR \fIDOMAIN\fR
+Force-launch Shadow Protocol: provisions an automated mesh of Tor nodes and deep wordlists.
+.TP
+\fBchat\fR
+Open a real-time interactive channel with the Neural Core for multi-step mission modulation.
+
+.SH ASSET & MISSION MANAGEMENT
+.TP
+\fBmcp\fR \fISUBCOMMAND\fR
+Manage the MCP ecosystem. Subcommands: \fIlist\fR, \fIadd\-local\fR, \fIadd\-remote\fR, \fIallow\-tool\fR.
+.TP
+\fBtools\fR [\-\-category \fICAT\fR]
+Catalog all synchronized mission assets, including local binaries and remote bridges.
+.TP
+\fBtypography\fR, \fBfonts\fR
+Synchronize tactical fonts. Supports 10 "Elite" assets for high-fidelity TUI rendering.
+.TP
+\fBsync\fR
+Force re-synchronization of local tool registries and hot-reload configurations.
+
+.SH INTELLIGENCE & REPORTING
+.TP
+\fBfindings\fR
+Aggregate and display all discovered vulnerabilities and assets from the current session.
+.TP
+\fBgraph\fR
+Render an interactive infrastructure relationship graph (Targets vs. Subdomains).
+.TP
+\fBreport\fR
+Leverage the AI agent to synthesize all collected telemetry into a strategic executive summary.
+.TP
+\fBhistory\fR, \fBlogs\fR
+View the unredacted tactical event log of the current mission lifecycle.
+
+.SH SYSTEM MAINTENANCE
+.TP
+\fBcheck\fR, \fBhealth\fR
+Run deep diagnostics on sandbox integrity, tool paths, and neural link status.
+.TP
+\fBburn\fR
+\fIEMERGENCY\fR: Cryptographically shred session buffers and terminate all processes.
+.TP
+\fBwipe\fR
+Clear volatile memory and reset the tactical context without shutting down the core.
+.TP
+\fBcompletions\fR \fISHELL\fR
+Generate high-performance autocompletion scripts (bash, zsh, fish).
+
+.SH RECONNAISSANCE DEPTHS
+.TP
+.B L1: PASSIVE
+Metadata aggregation, DNS archives, and OSINT registry discovery.
+.TP
+.B L2: ACTIVE
+Service discovery, port mapping, and non-intrusive enumeration.
+.TP
+.B L3: AGGRESSIVE
+Deep mutation scanning, vulnerability probing, and active fuzzing.
+
+.SH ENVIRONMENT VARIABLES
+.TP
+\fBMYTH_API_KEY\fR
+Primary authorization key for MYTH decentralized services.
+.TP
+\fBNVIDIA_NIM_KEY\fR
+API key for the NVIDIA NIM intelligence strategy layer.
+.TP
+\fBEXA_API_KEY\fR
+Authorization for the Exa semantic web search engine.
+.TP
+\fBGITHUB_TOKEN\fR
+Token for authenticated GitHub reconnaissance bridges.
+
+.SH FILES
+.TP
+\fI~/.config/myth/user.yaml\fR
+User-specific tactical configuration and API credential vault.
+.TP
+\fI/etc/myth/user.yaml\fR
+System-wide global fallback configuration.
+.TP
+\fI/tmp/myth_sandbox/\fR
+Volatile mount point for Bubblewrap isolated tool operations.
+.TP
+\fI~/.local/state/myth/log/\fR
+Default log telemetry location for non-root users.
+.TP
+\fI/var/log/myth/\fR
+System-wide operational log root (privileged).
+
+.SH EXIT STATUS
+.TP
+.B 0
+Mission accomplished. All buffers shredded and namespaces collapsed.
+.TP
+.B 1
+Operational failure. Check telemetry logs with \fB\-l debug\fR.
+.TP
+.B 130
+Manual abort (SIGINT). Emergency security wipe performed.
+
+.SH EXAMPLES
+.B Launch a stealth mission on a corporate domain:
+.RS
+$ myth stealth example.com
+.RE
+.PP
+.B Initialize full-spectrum recon with Tor rotation:
+.RS
+$ myth subdomains target.org \-\-master
+.RE
+.PP
+.B Perform a deep vulnerability audit of a subnet:
+.RS
+$ myth vuln 10.10.20.0/24 \-\-log\-level debug
+.RE
+
+.SH AUTHOR
+Shesher (MYTH Development Team)
+.SH BUGS
+Report tactical anomalies at <shesher0llms@gmail.com>.
+.SH SEE ALSO
+.B nmap(1), subfinder(1), bwrap(1), qdrant(1).

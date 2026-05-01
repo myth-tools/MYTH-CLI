@@ -1,0 +1,96 @@
+#!/bin/sh
+# ═══════════════════════════════════════════════════
+#  MYTH — Universal Maintainer Script (preinst)
+#  Supports: Debian, Fedora/RPM, Arch, Termux, Alpine
+# ═══════════════════════════════════════════════════
+set -e
+
+# Establish MYTH_VERSION for maintainer logging parity
+MYTH_VERSION=$(dpkg-query -W -f='${Version}' myth 2>/dev/null || echo "unknown")
+
+
+# ─── Tactical UI Standard ───
+myth_log() {
+    # Only use colors if stdout is a TTY
+    if [ -t 1 ]; then
+        CYAN='\033[0;36m'
+        # shellcheck disable=SC2034
+        GREEN='\033[0;32m'
+        NC='\033[0m'
+        printf "${CYAN}[MYTH]${NC} %s\n" "$1"
+    else
+        printf "[MYTH] %s\n" "$1"
+    fi
+}
+
+# Tactical Initialization
+myth_log "Executing Universal Pre-Installation Handler [v${MYTH_VERSION}]"
+
+
+# ─── OS Detection ───
+# shellcheck disable=SC2034
+DISTRO_FAMILY="debian"
+IS_TERMUX=false
+if [ -n "${PREFIX:-}" ] && echo "${PREFIX}" | grep -q "com.termux"; then
+    DISTRO_FAMILY="termux"
+    IS_TERMUX=true
+elif [ -f /etc/os-release ]; then
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    # shellcheck disable=SC2034
+    case "${ID:-}" in
+        fedora|rhel|centos|rocky|alma|ol|amzn) DISTRO_FAMILY="fedora" ;;
+        arch|manjaro|endeavouros|garuda|artix)   DISTRO_FAMILY="arch" ;;
+        alpine) DISTRO_FAMILY="alpine" ;;
+        opensuse*|sles) DISTRO_FAMILY="opensuse" ;;
+        *) DISTRO_FAMILY="debian" ;;
+    esac
+fi
+
+# ─── Tactical Environment Audit ───
+# shellcheck disable=SC2034
+if [ "$IS_TERMUX" = true ]; then
+    ROOT_DIR="$PREFIX"
+    BIN_DIR="$PREFIX/bin"
+    HOME_DIRS="$HOME"
+else
+    ROOT_DIR=""
+    if [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+        BIN_DIR="/usr/local/bin"
+    else
+        BIN_DIR="/usr/bin"
+    fi
+    HOME_DIRS="$(find /home -maxdepth 1 -mindepth 1 -type d 2>/dev/null) /root"
+fi
+
+CONF_DIR="${ROOT_DIR}/etc/myth"
+
+
+# ─── Pre-Installation Logic ───
+case "$1" in
+    install|upgrade|abort-upgrade)
+        myth_log "Verifying system readiness for mission start..."
+        
+        # Ensure config directory exists with tactical permissions
+        if [ ! -d "$CONF_DIR" ]; then
+            mkdir -p "$CONF_DIR"
+            chmod 755 "$CONF_DIR"
+        fi
+
+        # Log system information
+        myth_log "Target Architecture: $(uname -m)"
+        myth_log "Kernel Version: $(uname -r)"
+
+        # Check for mission-critical dependencies (Industry Grade)
+        for cmd in "curl" "grep" "tar"; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+                myth_log "⚠ Warning: Mission-critical tool '$cmd' not found. Package installation may proceed, but tool functionality will be degraded."
+            fi
+        done
+        ;;
+    *)
+        myth_log "Maintainer script called with unknown argument: $1"
+        ;;
+esac
+
+exit 0

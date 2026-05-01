@@ -1,0 +1,50 @@
+# ═══════════════════════════════════════════════════════════
+# MYTH-CLI : Mission Critical Docker Exclusions
+# ─────────────────────────────────────────────────────────
+# Prevents context-copying that causes disk exhaustion.
+# ═══════════════════════════════════════════════════════════
+
+# Recursive Build & Runtime Targets
+**/target/
+**/node_modules/
+**/dist/
+**/build/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.log
+
+# Global Repository Bloat
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+**/*~
+**/*.swp
+
+# Official Distribution Artifacts
+**/*.whl
+**/*.deb
+**/*.snap
+**/*.tar.gz
+**/*.tgz
+
+# Tactical & Sensitive Data (private key ONLY — myth.gpg is the PUBLIC key, needed in build context)
+.aptly/
+.cargo/
+myth-private.key
+*.pem
+*.key
+*.crt
+notes/
+logs/
+config/.myth_history
+
+# Environment files with potential secrets
+.env
+.env.*
+.env.local
+
+# Docs (large node_modules not needed for Docker)
+docs/

@@ -1,0 +1,59 @@
+{
+  "name": "@myth-tools/myth",
+  "version": "0.1.0",
+  "description": "An ultra-fast AI-powered reconnaissance agent for Kali Linux",
+  "main": "run.js",
+  "bin": {
+    "myth": "run.js",
+    "myth-cli": "run.js"
+  },
+  "scripts": {
+    "postinstall": "node provision-browser.js",
+    "test": "echo 'MYTH CLI (Node proxy): no JS tests — core is Rust. Run: cargo test' && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myth-tools/MYTH-CLI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/myth-tools/MYTH-CLI/issues"
+  },
+  "homepage": "https://myth.work.gd",
+  "funding": "https://github.com/sponsors/myth-tools",
+  "files": [
+    "run.js",
+    "provision-browser.js"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "keywords": [
+    "kali",
+    "reconnaissance",
+    "ai",
+    "agent",
+    "security",
+    "osint",
+    "cli"
+  ],
+  "author": "myth-tools <shesher0llms@gmail.com>",
+  "creator": {
+    "name": "Shesher Hasan",
+    "role": "Chief Architect",
+    "contact": "shesher0llms@gmail.com",
+    "organization": "myth-tools",
+    "clearance_level": "OPERATIVE-LEVEL-4 (SENIOR ARCHITECT)",
+    "system_license": "MYTH-INSTITUTIONAL-COMMERCIAL-2026-BETA"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}

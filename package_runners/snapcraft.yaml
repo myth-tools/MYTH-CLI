@@ -1,0 +1,113 @@
+# ==============================================================================
+# MYTH-CLI : Canonical Snap Command Runner
+# Architecture: Desktop / Server Snap
+# 
+# Execution Note: 
+# Maps MYTH to Ubuntu's default application distributor. 
+# `classic` confinement is mandated to permit Sandboxing (`bwrap` namespaces) 
+# and raw network sockets (Nmap).
+# 
+# Usage: snap run myth-cli scan <target>
+#
+# Creator Details:
+# Name: Shesher Hasan
+# Role: Chief Architect
+# Contact: shesher0llms@gmail.com
+# Organization: myth-tools
+# Clearance: OPERATIVE-LEVEL-4 (SENIOR ARCHITECT)
+# License: MYTH-INSTITUTIONAL-COMMERCIAL-2026-BETA
+# ==============================================================================
+
+name: myth
+base: core22
+version: '0.1.0'
+title: MYTH CLI
+contact: shesher0llms@gmail.com
+license: MIT
+donation: https://github.com/sponsors/myth-tools
+issues: https://github.com/myth-tools/MYTH-CLI/issues
+source-code: https://github.com/myth-tools/MYTH-CLI
+website: https://myth.work.gd
+
+summary: Ultra-fast AI-powered reconnaissance agent
+description: |
+  MYTH is a State-of-the-Art (SOTA) AI reconnaissance agent built exclusively 
+  for elite security researchers. It completely eliminates the friction of manual 
+  tool orchestration via an advanced NVIDIA NIM intelligence layer.
+  
+  [ Creator Details ]
+  Name: Shesher Hasan
+  Role: Chief Architect
+  Contact: shesher0llms@gmail.com
+  Organization: myth-tools
+  Clearance: OPERATIVE-LEVEL-4 (SENIOR ARCHITECT)
+  License: MYTH-INSTITUTIONAL-COMMERCIAL-2026-BETA
+
+grade: stable
+confinement: classic
+
+# Robust Linter Bypass: Silences non-fatal GLIBC/ELF warnings caused by host-linking on Kali
+lint:
+  ignore:
+    - classic
+    - library
+
+apps:
+  myth:
+    command: bin/myth
+    environment:
+      # Pre-condition the Snap environment to honor root OS TLS
+      SSL_CERT_DIR: /etc/ssl/certs
+    plugs:
+      - network
+      - network-bind
+      - home
+      - process-control
+      - network-observe
+
+parts:
+  myth:
+    plugin: rust
+    # Target directory sits above package_runners/
+    source: ..
+    build-packages:
+      - pkg-config
+      - libssl-dev
+    stage-packages:
+      - bubblewrap
+      - ca-certificates
+      - libssl3
+      - zstd
+      - tor
+      - nmap
+      - git
+      - curl
+    after: [lightpanda]
+
+  lightpanda:
+    plugin: nil
+    source: .
+    build-packages:
+      - curl
+    override-build: |
+      mkdir -p $CRAFT_PART_INSTALL/bin
+      # Resolve binary for the target build architecture
+      case "$CRAFT_ARCH_BUILD_FOR" in
+        amd64)   LP_BIN="lightpanda-x86_64-linux" ;;
+        arm64)   LP_BIN="lightpanda-aarch64-linux" ;;
+        *) echo "WARNING: Lightpanda not available for $CRAFT_ARCH_BUILD_FOR. Skipping."; exit 0 ;;
+      esac
+      echo "Downloading Lightpanda: $LP_BIN for $CRAFT_ARCH_BUILD_FOR"
+      curl -fsSL --connect-timeout 30 --retry 3 --retry-delay 2 \
+        "https://github.com/lightpanda-io/browser/releases/download/nightly/$LP_BIN" \
+        -o "$CRAFT_PART_INSTALL/bin/lightpanda"
+      # Validate the download before marking executable
+      FILE_SIZE=$(stat -c%s "$CRAFT_PART_INSTALL/bin/lightpanda" 2>/dev/null || echo 0)
+      if [ "$FILE_SIZE" -lt 1024 ]; then
+        echo "ERROR: Lightpanda download invalid (${FILE_SIZE} bytes). Removing."
+        rm -f "$CRAFT_PART_INSTALL/bin/lightpanda"
+        exit 1
+      fi
+      chmod +x "$CRAFT_PART_INSTALL/bin/lightpanda"
+      echo "Lightpanda operational at bin/lightpanda"
+

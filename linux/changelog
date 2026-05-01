@@ -1,0 +1,9 @@
+myth (0.1.0) stable; urgency=low
+
+  * Universal OS-Agnostic Path Resolution (Debian, RPM, Arch, Termux).
+  - Tactical Environment Audit integration across all maintainer scripts.
+  - Unified logging (myth_log) with TTY color-aware telemetry.
+  - Refined desktop integration with MimeType schema handlers.
+  - Enhanced Man page with tiered, privilege-aware path documentation.
+
+ -- myth-tools <shesher0llms@gmail.com>  Fri, 03 Apr 2026 22:20:00 +0600

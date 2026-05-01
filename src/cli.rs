@@ -952,11 +952,10 @@ pub async fn run_typography_cmd(config: &config::AppConfig, cmd: TypographyComma
                 crate::core::commands::handle_command(&prompt, &mut agent, &mission_events).await;
 
             match action {
-                CommandAction::Response(resp) => {
-                    if !resp.is_empty() {
-                        println!("{}", resp);
-                    }
+                CommandAction::Response(resp) if !resp.is_empty() => {
+                    println!("{}", resp);
                 }
+                CommandAction::Response(_) => {}
                 CommandAction::ProvisionFont(font_id) => {
                     println!(
                         "\n  {} {} {}",

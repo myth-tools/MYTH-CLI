@@ -1048,10 +1048,8 @@ pub async fn handle_command(
                             tool_args["respect_robots"] = serde_json::Value::Bool(false);
                             tool_args["jitter_factor"] = serde_json::json!(0.1);
                         }
-                        _ if !arg.starts_with('-') => {
-                            if arg != "help" {
-                                domains.push(arg.to_string());
-                            }
+                        _ if !arg.starts_with('-') && arg != "help" => {
+                            domains.push(arg.to_string());
                         }
                         _ => {}
                     }
@@ -2397,7 +2395,7 @@ agent:
 llm:
   provider: "nvidia-nim"
   base_url: "url"
-  nvidia_nim_api_key: []
+  nvidia_nim_api_key: ["nvapi-MYTH-TEST-KEY-VALIDATION-BYPASS"]
   model: "model"
   temperature: 0.1
   max_tokens: 100

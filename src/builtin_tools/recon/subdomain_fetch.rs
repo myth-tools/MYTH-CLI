@@ -38,6 +38,9 @@ fn hash_string(s: &str) -> u64 {
     hasher.finish()
 }
 
+use hickory_proto::rr::record_type::RecordType;
+use hickory_resolver::config::{ResolverConfig, ResolverOpts};
+use hickory_resolver::TokioResolver;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -47,9 +50,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, RwLock, Semaphore};
 use tokio::time::sleep;
 use tokio_native_tls::TlsConnector;
-use trust_dns_proto::rr::record_type::RecordType;
-use trust_dns_resolver::config::{ResolverConfig, ResolverOpts};
-use trust_dns_resolver::TokioAsyncResolver;
 use url::Url;
 
 // =============================================================================
@@ -2059,7 +2059,7 @@ pub type DnsCacheMap = DashMap<String, Option<(Vec<String>, Option<String>)>>;
 
 pub struct AppState {
     pub config: Config,
-    pub dns_resolver: Arc<TokioAsyncResolver>,
+    pub dns_resolver: Arc<TokioResolver>,
     pub resolvers: Arc<RwLock<Vec<String>>>,
     pub current_resolver_index: Arc<AtomicUsize>,
     pub user_agents: Arc<Vec<String>>,
@@ -3080,7 +3080,7 @@ async fn create_resolver(
     resolvers: &[String],
     timeout: Duration,
     retries: u32,
-) -> Result<TokioAsyncResolver> {
+) -> Result<TokioResolver> {
     use rand::seq::SliceRandom;
     let mut resolver_config = ResolverConfig::new();
 
@@ -3101,23 +3101,27 @@ async fn create_resolver(
 
     for resolver in active_pool {
         if let Ok(addr) = format!("{}:53", resolver).parse() {
-            resolver_config.add_name_server(trust_dns_resolver::config::NameServerConfig {
+            let ns_config = hickory_resolver::config::NameServerConfig {
                 socket_addr: addr,
-                protocol: trust_dns_resolver::config::Protocol::Udp,
+                protocol: hickory_proto::xfer::Protocol::Udp,
                 tls_dns_name: None,
                 trust_negative_responses: true,
                 bind_addr: None,
-            });
+                http_endpoint: None,
+            };
+            resolver_config.add_name_server(ns_config);
 
             // Also add TCP fallback
             if let Ok(tcp_addr) = format!("{}:53", resolver).parse() {
-                resolver_config.add_name_server(trust_dns_resolver::config::NameServerConfig {
+                let tcp_ns_config = hickory_resolver::config::NameServerConfig {
                     socket_addr: tcp_addr,
-                    protocol: trust_dns_resolver::config::Protocol::Tcp,
+                    protocol: hickory_proto::xfer::Protocol::Tcp,
                     tls_dns_name: None,
                     trust_negative_responses: true,
                     bind_addr: None,
-                });
+                    http_endpoint: None,
+                };
+                resolver_config.add_name_server(tcp_ns_config);
             }
         }
     }
@@ -3126,13 +3130,18 @@ async fn create_resolver(
     resolver_opts.timeout = timeout;
     resolver_opts.attempts = retries as usize;
     resolver_opts.cache_size = 10000;
-    resolver_opts.use_hosts_file = true;
-    resolver_opts.ip_strategy = trust_dns_resolver::config::LookupIpStrategy::Ipv4thenIpv6;
+    resolver_opts.use_hosts_file = hickory_resolver::config::ResolveHosts::Always;
+    resolver_opts.ip_strategy = hickory_resolver::config::LookupIpStrategy::Ipv4thenIpv6;
     resolver_opts.try_tcp_on_error = true;
     resolver_opts.edns0 = true;
     resolver_opts.validate = false;
 
-    Ok(TokioAsyncResolver::tokio(resolver_config, resolver_opts))
+    Ok(TokioResolver::builder_with_config(
+        resolver_config,
+        hickory_resolver::name_server::TokioConnectionProvider::default(),
+    )
+    .with_options(resolver_opts)
+    .build())
 }
 
 // Resolver performance optimized for zero-lock concurrency
@@ -3554,7 +3563,7 @@ async fn test_proxies(
     }
 
     // Phase 16: Fastest-First Sorting Algorithm
-    working_with_latency.sort_by(|a, b| a.1.cmp(&b.1));
+    working_with_latency.sort_by_key(|a| a.1);
 
     working_with_latency
         .into_iter()
@@ -5763,11 +5772,12 @@ async fn enumerate_axfr_internal(state: Arc<AppState>, domain: String) -> Result
                 let addr = std::net::SocketAddr::new(ip, 53);
                 // Sovereign Tier: Raw TCP AXFR Client
                 if let Ok(mut stream) = tokio::net::TcpStream::connect(addr).await {
+                    use hickory_proto::op::{Message, MessageType, OpCode, Query};
+                    use hickory_proto::rr::record_type::RecordType;
                     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-                    use trust_dns_proto::op::{Message, MessageType, OpCode, Query};
 
                     let mut msg = Message::new();
-                    let name = match trust_dns_proto::rr::Name::from_str(&format!("{}.", domain)) {
+                    let name = match hickory_proto::rr::Name::from_str(&format!("{}.", domain)) {
                         Ok(n) => n,
                         Err(_) => continue,
                     };
@@ -5909,8 +5919,7 @@ async fn enumerate_nsec_walking(state: Arc<AppState>, domain: String) -> Result<
         .await
     {
         for record in nsec_lookup.iter() {
-            if let Some(trust_dns_proto::rr::dnssec::rdata::DNSSECRData::NSEC(nsec)) =
-                record.as_dnssec()
+            if let Some(hickory_proto::dnssec::rdata::DNSSECRData::NSEC(nsec)) = record.as_dnssec()
             {
                 let next_domain = nsec
                     .next_domain_name()
@@ -7671,7 +7680,7 @@ async fn generate_mission_summary(state: &AppState) -> Result<()> {
         .iter()
         .map(|e| (e.key().clone(), *e.value()))
         .collect();
-    vec_sources.sort_by(|a, b| b.1.cmp(&a.1));
+    vec_sources.sort_by_key(|b| std::cmp::Reverse(b.1));
     for (source, count) in vec_sources {
         content.push_str(&format!("- **{}**: {} subdomains\n", source, count));
     }
@@ -7767,7 +7776,7 @@ async fn print_mission_briefing_summary(state: &AppState) {
         .iter()
         .map(|e| (e.key().clone(), *e.value()))
         .collect();
-    sources.sort_by(|a, b| b.1.cmp(&a.1));
+    sources.sort_by_key(|b| std::cmp::Reverse(b.1));
     for (source, count) in sources.iter().take(3) {
         println!(
             "  {}  {:<24} {} subdomains",

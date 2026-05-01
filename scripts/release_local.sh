@@ -211,10 +211,10 @@ info "Publication Architecture Matrix: [$PUB_ARCHS]"
 if aptly publish list | grep -q "\./stable"; then
     # Check if existing publication's architectures match our new matrix
     # Extract currently published architectures: [amd64, arm64, all]
-    CURRENT_ARCHS_RAW=$(aptly publish list | grep "\./stable" | sed -n 's/.*\[\(.*\)\].*/\1/p' | head -1)
-    # Sort and normalize for comparison
-    CURRENT_ARCHS=$(echo "$CURRENT_ARCHS_RAW" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
-    WANTED_ARCHS=$(echo "$PUB_ARCHS" | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
+    CURRENT_ARCHS_RAW=$(aptly publish list | grep "\./stable" | sed -n 's/.*stable \[\([^]]*\)\].*/\1/p' | head -1)
+    # Sort and normalize for comparison (strip spaces)
+    CURRENT_ARCHS=$(echo "$CURRENT_ARCHS_RAW" | tr -d ' ' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
+    WANTED_ARCHS=$(echo "$PUB_ARCHS" | tr -d ' ' | tr ',' '\n' | sort | tr '\n' ',' | sed 's/,$//')
 
     if [ "$CURRENT_ARCHS" = "$WANTED_ARCHS" ]; then
         info "Updating existing publication (Matrix matched)..."

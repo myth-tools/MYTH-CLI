@@ -1415,29 +1415,28 @@ impl ChatWidget {
                         is_sup = !is_sup;
                     }
                 }
+                '=' if !is_code && chars.peek() == Some(&'=') => {
+                    chars.next();
+                    flush_buffer(
+                        &mut buffer,
+                        &mut spans,
+                        is_bold,
+                        is_italic,
+                        is_strike,
+                        is_code,
+                        is_highlight,
+                        is_sub,
+                        is_sup,
+                        is_underline,
+                        is_insert,
+                        is_comment,
+                        is_footnote,
+                        theme,
+                    );
+                    is_highlight = !is_highlight;
+                }
                 '=' if !is_code => {
-                    if chars.peek() == Some(&'=') {
-                        chars.next();
-                        flush_buffer(
-                            &mut buffer,
-                            &mut spans,
-                            is_bold,
-                            is_italic,
-                            is_strike,
-                            is_code,
-                            is_highlight,
-                            is_sub,
-                            is_sup,
-                            is_underline,
-                            is_insert,
-                            is_comment,
-                            is_footnote,
-                            theme,
-                        );
-                        is_highlight = !is_highlight;
-                    } else {
-                        buffer.push(c);
-                    }
+                    buffer.push(c);
                 }
                 '!' if !is_code => {
                     if chars.peek() == Some(&'!') {
@@ -1500,29 +1499,28 @@ impl ChatWidget {
                         buffer.push(c);
                     }
                 }
+                '?' if !is_code && chars.peek() == Some(&'?') => {
+                    chars.next();
+                    flush_buffer(
+                        &mut buffer,
+                        &mut spans,
+                        is_bold,
+                        is_italic,
+                        is_strike,
+                        is_code,
+                        is_highlight,
+                        is_sub,
+                        is_sup,
+                        is_underline,
+                        is_insert,
+                        is_comment,
+                        is_footnote,
+                        theme,
+                    );
+                    is_comment = !is_comment;
+                }
                 '?' if !is_code => {
-                    if chars.peek() == Some(&'?') {
-                        chars.next();
-                        flush_buffer(
-                            &mut buffer,
-                            &mut spans,
-                            is_bold,
-                            is_italic,
-                            is_strike,
-                            is_code,
-                            is_highlight,
-                            is_sub,
-                            is_sup,
-                            is_underline,
-                            is_insert,
-                            is_comment,
-                            is_footnote,
-                            theme,
-                        );
-                        is_comment = !is_comment;
-                    } else {
-                        buffer.push(c);
-                    }
+                    buffer.push(c);
                 }
                 '$' if !is_code => {
                     flush_buffer(

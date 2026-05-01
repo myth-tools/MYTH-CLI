@@ -205,6 +205,24 @@ find target/release target/*/release -maxdepth 1 -name "myth" 2>/dev/null | whil
 done
 report_success
 
+status "Validating Portability Binaries (Static musl builds)" "${MAGENTA}" "📦"
+MISSING_PORTABILITY=0
+for arch in musl-x64 musl-arm64; do
+    bin="target/portability/myth-${arch}-static"
+    if [ -f "$bin" ]; then
+        echo -e "  - Found: $bin (${CYAN}$(file -b "$bin" | cut -d, -f1)${NC})"
+    else
+        echo -e "${RED}  - MISSING: $bin${NC}"
+        MISSING_PORTABILITY=$((MISSING_PORTABILITY + 1))
+    fi
+done
+
+if [ "$MISSING_PORTABILITY" -eq 0 ]; then
+    report_success
+else
+    warn "$MISSING_PORTABILITY portability binary(ies) missing."
+fi
+
 # ── Final Summary Dashboard ───────────────────────────────────────────────────
 STAMP_END=$(date +%s)
 DURATION=$((STAMP_END - STAMP_START))

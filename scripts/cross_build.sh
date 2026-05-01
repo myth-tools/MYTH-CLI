@@ -67,33 +67,50 @@ info "Targets: ${BUILD_ARCHES[*]}"
 info "Host architecture: $HOST_DEB_ARCH (will skip if in target list)"
 
 # ─── Ensure Docker is running ───
+DOCKER_AVAILABLE=true
 if ! docker info &>/dev/null; then
-    err "Docker daemon is not running. Start Docker first: sudo systemctl start docker"
+    info "Docker daemon is not running. Attempting to start it automatically..."
+    if command -v systemctl &>/dev/null; then
+        sudo systemctl start docker
+    elif command -v service &>/dev/null; then
+        sudo service docker start
+    fi
+    
+    # Re-verify after attempt
+    if ! docker info &>/dev/null; then
+        warn "Docker daemon is still not accessible. Cross-rs builds will be skipped (fallback to native only)."
+        DOCKER_AVAILABLE=false
+    else
+        ok "Docker daemon: active"
+    fi
+else
+    ok "Docker daemon: active"
 fi
-ok "Docker daemon: active"
 
 # Retry loop for Docker registry access
 REGISTRY_IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-gnu:0.2.5"
 IMAGE_PRESENT=false
-if docker images -q "$REGISTRY_IMAGE" &>/dev/null; then
-    IMAGE_PRESENT=true
-    ok "Registry image present locally."
-else
-    info "Pre-fetching registry image (ghcr.io) with 3-attempt exponential backoff..."
+if [ "$DOCKER_AVAILABLE" = true ]; then
+    if docker images -q "$REGISTRY_IMAGE" &>/dev/null; then
+        IMAGE_PRESENT=true
+        ok "Registry image present locally."
+    else
+        info "Pre-fetching registry image (ghcr.io) with 3-attempt exponential backoff..."
 
-    for attempt in 1 2 3; do
-        if docker pull "$REGISTRY_IMAGE" &>/dev/null; then
-            IMAGE_PRESENT=true
-            ok "Registry image synchronized."
-            break
-        else
-            warn "Registry pull attempt $attempt/3 timed out. Retrying in $((attempt * 5))s..."
-            sleep $((attempt * 5))
-        fi
-    done
+        for attempt in 1 2 3; do
+            if docker pull "$REGISTRY_IMAGE" &>/dev/null; then
+                IMAGE_PRESENT=true
+                ok "Registry image synchronized."
+                break
+            else
+                warn "Registry pull attempt $attempt/3 timed out. Retrying in $((attempt * 5))s..."
+                sleep $((attempt * 5))
+            fi
+        done
+    fi
 fi
 
-if [ "$IMAGE_PRESENT" = false ]; then
+if [ "$IMAGE_PRESENT" = false ] && [ "$DOCKER_AVAILABLE" = true ]; then
     warn "Registry unreachable. Cross-build will attempt to use local toolchains if available."
 fi
 
@@ -163,10 +180,12 @@ for DEB_ARCH in "${BUILD_ARCHES[@]}"; do
     
     # Attempt 1: Cross-rs (Docker requirement)
     CROSS_SUCCESS=false
-    if cross build --release --target "$RUST_TARGET" 2>&1 | tee "$BUILD_LOG"; then
+    if [ "$DOCKER_AVAILABLE" = true ] && cross build --release --target "$RUST_TARGET" 2>&1 | tee "$BUILD_LOG"; then
         CROSS_SUCCESS=true
     else
-        warn "Cross-rs build failed (Docker timeout or registry issue)."
+        if [ "$DOCKER_AVAILABLE" = true ]; then
+            warn "Cross-rs build failed (Docker timeout or registry issue)."
+        fi
         
         # Attempt 2: Native cargo build (Requires local toolchain)
         # Determine the required linker for this target
@@ -174,18 +193,37 @@ for DEB_ARCH in "${BUILD_ARCHES[@]}"; do
         REMEDIATION=""
         case "$RUST_TARGET" in
             aarch64-unknown-linux-gnu*) LINKER="aarch64-linux-gnu-gcc"; REMEDIATION="sudo apt install gcc-aarch64-linux-gnu" ;;
+            aarch64-unknown-linux-musl*) LINKER="aarch64-linux-musl-gcc"; REMEDIATION="Manual install from musl.cc or use 'cross'" ;;
             armv7-unknown-linux-gnueabihf*) LINKER="arm-linux-gnueabihf-gcc"; REMEDIATION="sudo apt install gcc-arm-linux-gnueabihf" ;;
             i686-unknown-linux-gnu*) LINKER="gcc-multilib"; REMEDIATION="sudo apt install gcc-multilib" ;;
-            *musl*) # Musl targets often need specialized cross-linkers or 'musl-tools'
+            x86_64-unknown-linux-musl*) 
+                if [[ "$(uname -m)" == "x86_64" ]]; then
+                    LINKER="musl-gcc"; REMEDIATION="sudo apt install musl-tools"
+                else
+                    LINKER="x86_64-linux-musl-gcc"; REMEDIATION="Manual install from musl.cc"
+                fi
+                ;;
+            *musl*) 
                 LINKER="musl-gcc"; REMEDIATION="sudo apt install musl-tools" ;;
         esac
 
         if [ -n "$LINKER" ] && ! command -v "$LINKER" &>/dev/null; then
             warn "Local toolchain for $RUST_TARGET is missing (Required: $LINKER)."
-            echo -e "${YELLOW}  ↳ [REMEDIATION] Run: ${CYAN}${BOLD}$REMEDIATION${NC}"
+            echo -e "${YELLOW}  ↳ [REMEDIATION] ${CYAN}${BOLD}$REMEDIATION${NC}"
+            
+            # Special hint for Docker failures
+            if [ "$DOCKER_AVAILABLE" = true ]; then
+                warn "Cross-rs (Docker) failed and no local toolchain found. Check Docker DNS/network."
+            fi
             warn "All compilation paths exhausted for $DEB_ARCH."
         else
             info "Attempting native cargo build fallback (using host toolchain)..."
+            
+            # Configure cross-linker for the target
+            TARGET_ENV_VAR="CARGO_TARGET_$(echo "$RUST_TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER"
+            export "$TARGET_ENV_VAR"="$LINKER"
+            info "Linker: $LINKER ($TARGET_ENV_VAR)"
+            
             if cargo build --release --target "$RUST_TARGET" 2>&1 | tee -a "$BUILD_LOG"; then
                 CROSS_SUCCESS=true
                 ok "Native cargo build fallback successful."
@@ -254,7 +292,14 @@ done
 # ─── Summary ───
 section "BUILD SUMMARY"
 
-if [ ${#PRODUCED_DEBS[@]} -eq 0 ]; then
+STATIC_BUILT=0
+for pt in "${PORTABILITY_TARGETS[@]}"; do
+    if [ -f "target/portability/myth-${pt}-static" ]; then
+        STATIC_BUILT=$((STATIC_BUILT + 1))
+    fi
+done
+
+if [ ${#PRODUCED_DEBS[@]} -eq 0 ] && [ "$STATIC_BUILT" -eq 0 ]; then
     # Check if skipping was intentional (all targets matched host arch)
     ALL_HOST=true
     for DEB_ARCH in "${BUILD_ARCHES[@]}"; do

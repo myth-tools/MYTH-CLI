@@ -274,24 +274,23 @@ impl SecurityPolicy {
         let mut transformed = args.to_vec();
 
         match name {
-            "ping" | "ping6" => {
-                if !args.iter().any(|a| a == "-c" || a.starts_with("-c")) {
-                    transformed.insert(0, "-c".to_string());
-                    transformed.insert(1, "4".to_string());
-                }
+            "ping" | "ping6" if !args.iter().any(|a| a == "-c" || a.starts_with("-c")) => {
+                transformed.insert(0, "-c".to_string());
+                transformed.insert(1, "4".to_string());
             }
-            "fping" | "hping3" => {
-                if !args.iter().any(|a| a == "-c" || a.starts_with("-c")) {
-                    transformed.insert(0, "-c".to_string());
-                    transformed.insert(1, "4".to_string());
-                }
+            "ping" | "ping6" => {}
+            "fping" | "hping3" if !args.iter().any(|a| a == "-c" || a.starts_with("-c")) => {
+                transformed.insert(0, "-c".to_string());
+                transformed.insert(1, "4".to_string());
             }
-            "traceroute" | "tcptraceroute" => {
-                if !args.iter().any(|a| a == "-m" || a.starts_with("-m")) {
-                    transformed.insert(0, "-m".to_string());
-                    transformed.insert(1, "15".to_string());
-                }
+            "fping" | "hping3" => {}
+            "traceroute" | "tcptraceroute"
+                if !args.iter().any(|a| a == "-m" || a.starts_with("-m")) =>
+            {
+                transformed.insert(0, "-m".to_string());
+                transformed.insert(1, "15".to_string());
             }
+            "traceroute" | "tcptraceroute" => {}
             "nmap" => {
                 // ELITE: nmap requires raw sockets for default SYN scans, which are blocked in unshared namespaces.
                 // We automatically inject -sT (Connect Scan) and -Pn (No Ping) for industrial-grade stability.
@@ -311,24 +310,21 @@ impl SecurityPolicy {
                 }
             }
 
-            "masscan" => {
-                if !args.iter().any(|a| a.contains("--wait")) {
-                    transformed.push("--wait".to_string());
-                    transformed.push("3".to_string());
-                }
+            "masscan" if !args.iter().any(|a| a.contains("--wait")) => {
+                transformed.push("--wait".to_string());
+                transformed.push("3".to_string());
             }
-            "nikto" => {
-                if !args.iter().any(|a| a.contains("-maxtime")) {
-                    transformed.push("-maxtime".to_string());
-                    transformed.push("300".to_string());
-                }
+            "masscan" => {}
+            "nikto" if !args.iter().any(|a| a.contains("-maxtime")) => {
+                transformed.push("-maxtime".to_string());
+                transformed.push("300".to_string());
             }
-            "gobuster" | "ffuf" => {
-                if !args.iter().any(|a| a == "-t") {
-                    transformed.push("-t".to_string());
-                    transformed.push("20".to_string());
-                }
+            "nikto" => {}
+            "gobuster" | "ffuf" if !args.iter().any(|a| a == "-t") => {
+                transformed.push("-t".to_string());
+                transformed.push("20".to_string());
             }
+            "gobuster" | "ffuf" => {}
             "sqlmap" => {
                 if !args.iter().any(|a| a.contains("--batch")) {
                     transformed.push("--batch".to_string());
@@ -338,11 +334,10 @@ impl SecurityPolicy {
                     transformed.push("1".to_string());
                 }
             }
-            "trufflehog" => {
-                if !args.iter().any(|a| a == "--no-update") {
-                    transformed.insert(0, "--no-update".to_string());
-                }
+            "trufflehog" if !args.iter().any(|a| a == "--no-update") => {
+                transformed.insert(0, "--no-update".to_string());
             }
+            "trufflehog" => {}
             "gitleaks" => {
                 if !args.iter().any(|a| a == "detect" || a == "protect") {
                     transformed.insert(0, "detect".to_string());
@@ -351,13 +346,12 @@ impl SecurityPolicy {
                     transformed.push("--no-git".to_string());
                 }
             }
-            "cloudfox" => {
+            "cloudfox" if !args.iter().any(|a| a == "--out") => {
                 // Ensure cloudfox operates in non-interactive mode for automated recon
-                if !args.iter().any(|a| a == "--out") {
-                    transformed.push("--out".to_string());
-                    transformed.push("json".to_string());
-                }
+                transformed.push("--out".to_string());
+                transformed.push("json".to_string());
             }
+            "cloudfox" => {}
             _ => {}
         }
 

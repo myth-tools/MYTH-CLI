@@ -1,0 +1,8 @@
+# MYTH Arch Repository
+# Add to /etc/pacman.conf:
+#   [myth]
+#   SigLevel = Optional TrustAll
+#   Server = https://myth.work.gd/arch
+
+myth-0.1.0-1-x86_64.pkg.tar.zst
+myth-0.1.0-1-aarch64.pkg.tar.zst
